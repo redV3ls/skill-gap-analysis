@@ -1,0 +1,47 @@
+name = "skill-gap-analysis-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "skill-gap-analysis-api"
+
+[env.staging]
+name = "skill-gap-analysis-api-staging"
+
+[env.development]
+name = "skill-gap-analysis-api-dev"
+
+# Environment variables (set these in Cloudflare dashboard or via wrangler secret)
+[vars]
+NODE_ENV = "production"
+CORS_ORIGIN = "https://your-frontend-domain.com"
+RATE_LIMIT_WINDOW_MS = "900000"
+RATE_LIMIT_MAX_REQUESTS = "100"
+LOG_LEVEL = "info"
+
+# Secrets (use: wrangler secret put SECRET_NAME)
+# JWT_SECRET
+# DATABASE_URL (for D1 or external database)
+# REDIS_URL (for Upstash Redis or similar)
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "skill-gap-db"
+database_id = "your-d1-database-id"
+
+# KV namespace for caching
+[[kv_namespaces]]
+binding = "CACHE"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+# Rate limiting using Durable Objects
+[[durable_objects.bindings]]
+name = "RATE_LIMITER"
+class_name = "RateLimiter"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["RateLimiter"]

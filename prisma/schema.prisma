@@ -1,0 +1,202 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // User profile and preferences
+  profile UserProfile?
+  
+  // Analysis history
+  gapAnalyses GapAnalysis[]
+  
+  @@map("users")
+}
+
+model UserProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Profile information
+  title       String?
+  industry    String?
+  location    String?
+  experience  Int? // years of experience
+  
+  // Learning preferences
+  learningStyle    String? // visual, auditory, kinesthetic
+  timeCommitment   Int?    // hours per week
+  budgetRange      String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // User skills
+  userSkills UserSkill[]
+  
+  @@map("user_profiles")
+}
+
+model Skill {
+  id          String @id @default(cuid())
+  name        String @unique
+  category    String
+  description String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userSkills     UserSkill[]
+  jobSkills      JobSkill[]
+  skillSynonyms  SkillSynonym[] @relation("SkillSynonyms")
+  synonymOf      SkillSynonym[] @relation("SynonymOf")
+  
+  @@map("skills")
+}
+
+model UserSkill {
+  id        String @id @default(cuid())
+  userId    String
+  skillId   String
+  
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill     Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  
+  level            String   // beginner, intermediate, advanced, expert
+  yearsExperience  Int?
+  lastUsed         DateTime?
+  confidenceScore  Float?   // 0.0 to 1.0
+  certifications   String[] // Array of certification names
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, skillId])
+  @@map("user_skills")
+}
+
+model Job {
+  id          String @id @default(cuid())
+  title       String
+  company     String?
+  industry    String?
+  location    String?
+  description String?
+  
+  // Salary information
+  salaryMin   Int?
+  salaryMax   Int?
+  currency    String? @default("USD")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Required skills for this job
+  jobSkills    JobSkill[]
+  gapAnalyses  GapAnalysis[]
+  
+  @@map("jobs")
+}
+
+model JobSkill {
+  id    String @id @default(cuid())
+  jobId String
+  skillId String
+  
+  job   Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  
+  importance     String // critical, important, nice-to-have
+  minimumLevel   String // beginner, intermediate, advanced, expert
+  yearsRequired  Int?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([jobId, skillId])
+  @@map("job_skills")
+}
+
+model GapAnalysis {
+  id       String @id @default(cuid())
+  userId   String
+  jobId    String
+  
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job      Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  overallMatch Float // 0.0 to 1.0
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Individual skill gaps
+  skillGaps SkillGap[]
+  
+  @@map("gap_analyses")
+}
+
+model SkillGap {
+  id            String @id @default(cuid())
+  analysisId    String
+  skillName     String
+  
+  analysis      GapAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  
+  currentLevel   String?  // user's current level
+  requiredLevel  String   // required level for job
+  gapSeverity    String   // critical, moderate, minor
+  timeToBridge   Int?     // estimated days to bridge gap
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("skill_gaps")
+}
+
+model SkillSynonym {
+  id        String @id @default(cuid())
+  skillId   String
+  synonymId String
+  
+  skill   Skill @relation("SkillSynonyms", fields: [skillId], references: [id], onDelete: Cascade)
+  synonym Skill @relation("SynonymOf", fields: [synonymId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([skillId, synonymId])
+  @@map("skill_synonyms")
+}
+
+model IndustryTrend {
+  id         String @id @default(cuid())
+  skillName  String
+  industry   String
+  region     String?
+  
+  demandScore     Float   // 0.0 to 1.0
+  growthRate      Float   // percentage
+  averageSalary   Int?
+  jobOpenings     Int?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([skillName, industry, region])
+  @@map("industry_trends")
+}

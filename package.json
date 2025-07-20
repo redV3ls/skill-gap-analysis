@@ -1,0 +1,59 @@
+{
+  "name": "skill-gap-analysis-api",
+  "version": "1.0.0",
+  "description": "Comprehensive skill gap analysis API service",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler build",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "db:generate": "drizzle-kit generate:sqlite",
+    "db:push": "drizzle-kit push:sqlite",
+    "db:migrate": "wrangler d1 migrations apply skill-gap-db",
+    "db:studio": "drizzle-kit studio",
+    "cf:login": "wrangler auth login",
+    "cf:whoami": "wrangler auth whoami"
+  },
+  "keywords": [
+    "skill-analysis",
+    "career-development",
+    "api",
+    "typescript",
+    "express"
+  ],
+  "author": "Skill Gap Analysis Team",
+  "license": "MIT",
+  "dependencies": {
+    "hono": "^3.12.0",
+    "@hono/node-server": "^1.8.0",
+    "drizzle-orm": "^0.29.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.22.4",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240512.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/uuid": "^9.0.7",
+    "@types/node": "^20.10.5",
+    "@types/jest": "^29.5.8",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.28.2",
+    "drizzle-kit": "^0.20.9",
+    "jest": "^29.7.0",
+    "jest-environment-miniflare": "^2.14.2",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
