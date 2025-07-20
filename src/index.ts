@@ -3,6 +3,10 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { secureHeaders } from 'hono/secure-headers';
+import { errorHandler } from './middleware/errorHandler';
+import { authMiddleware } from './middleware/auth';
+import { rateLimiter } from './middleware/rateLimiter';
+import authRoutes from './routes/auth';
 
 export interface Env {
   // Cloudflare bindings
@@ -21,21 +25,42 @@ export interface Env {
 
 const app = new Hono<{ Bindings: Env }>();
 
+// Global error handler
+app.onError(errorHandler);
+
 // Global middleware
 app.use('*', logger());
 app.use('*', prettyJSON());
-app.use('*', secureHeaders());
+app.use('*', secureHeaders({
+  contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
+  crossOriginEmbedderPolicy: false, // Disable for API
+}));
 
 // CORS configuration
 app.use('*', cors({
   origin: (origin, c) => {
-    const allowedOrigin = c.env?.CORS_ORIGIN || 'http://localhost:3000';
-    return origin === allowedOrigin ? allowedOrigin : null;
+    const allowedOrigins = [
+      c.env?.CORS_ORIGIN || 'http://localhost:3000',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://localhost:3000',
+      'https://localhost:3001',
+    ];
+    
+    if (!origin) return null; // No origin header (e.g., same-origin requests)
+    return allowedOrigins.includes(origin) ? origin : null;
   },
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Requested-With'],
   credentials: true,
+  maxAge: 86400, // 24 hours
 }));
+
+// Rate limiting middleware
+app.use('*', rateLimiter);
+
+// Authentication middleware (applied after public routes)
+app.use('/api/v1/*', authMiddleware);
 
 // Basic health check
 app.get('/health', (c) => {
@@ -92,6 +117,9 @@ app.get('/health/detailed', async (c) => {
   return c.json(healthStatus, statusCode);
 });
 
+// Mount auth routes
+app.route('/api/v1/auth', authRoutes);
+
 // API root endpoint
 app.get('/api/v1', (c) => {
   return c.json({
@@ -100,6 +128,14 @@ app.get('/api/v1', (c) => {
     endpoints: {
       health: '/health',
       documentation: '/api/v1/docs',
+      auth: {
+        register: 'POST /api/v1/auth/register',
+        login: 'POST /api/v1/auth/login',
+        me: 'GET /api/v1/auth/me',
+        refresh: 'POST /api/v1/auth/refresh',
+        apiKeys: 'GET /api/v1/auth/api-keys',
+        createApiKey: 'POST /api/v1/auth/api-keys',
+      },
       analyze: {
         gap: 'POST /api/v1/analyze/gap',
         team: 'POST /api/v1/analyze/team',

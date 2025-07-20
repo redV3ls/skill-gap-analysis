@@ -5,7 +5,25 @@ import { sql } from 'drizzle-orm';
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
-  name: text('name'),
+  passwordHash: text('password_hash').notNull(),
+  name: text('name').notNull(),
+  organization: text('organization'),
+  role: text('role').notNull().default('user'), // user, admin
+  lastLogin: text('last_login'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// API keys table
+export const apiKeys = sqliteTable('api_keys', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  permissions: text('permissions').notNull(), // JSON array as text
+  expiresAt: text('expires_at'),
+  lastUsed: text('last_used'),
+  isActive: integer('is_active').notNull().default(1), // 0 or 1 (boolean)
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });

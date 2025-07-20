@@ -1,59 +1,66 @@
-import { Context } from 'hono';
+import { Context, Next } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 
 export class AppError extends Error {
   public statusCode: number;
   public code: string;
-  public details?: any;
+  public isOperational: boolean;
 
-  constructor(message: string, statusCode: number = 500, code?: string, details?: any) {
+  constructor(message: string, statusCode: number = 500, code: string = 'INTERNAL_ERROR') {
     super(message);
     this.statusCode = statusCode;
-    this.code = code || 'INTERNAL_SERVER_ERROR';
-    this.details = details;
-    this.name = 'AppError';
+    this.code = code;
+    this.isOperational = true;
+
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 
-export const errorHandler = (error: Error, c: Context) => {
-  console.error('API Error:', {
-    error: {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    },
-    request: {
-      method: c.req.method,
-      url: c.req.url,
-      headers: Object.fromEntries(c.req.raw.headers.entries()),
-    },
+export const errorHandler = async (err: Error, c: Context) => {
+  console.error('Error occurred:', {
+    message: err.message,
+    stack: err.stack,
+    url: c.req.url,
+    method: c.req.method,
+    timestamp: new Date().toISOString(),
   });
 
-  // Handle HTTPException from Hono
-  if (error instanceof HTTPException) {
+  // Handle Hono HTTP exceptions
+  if (err instanceof HTTPException) {
     return c.json({
       error: {
         code: 'HTTP_EXCEPTION',
-        message: error.message,
-        status: error.status,
+        message: err.message,
+        status: err.status,
         timestamp: new Date().toISOString(),
+        request_id: c.req.header('CF-Ray') || 'unknown',
       },
-    }, error.status);
+    }, err.status);
   }
 
   // Handle custom AppError
-  if (error instanceof AppError) {
+  if (err instanceof AppError) {
     return c.json({
       error: {
-        code: error.code,
-        message: error.message,
-        ...(c.env?.NODE_ENV === 'development' && {
-          stack: error.stack,
-          details: error.details,
-        }),
+        code: err.code,
+        message: err.message,
         timestamp: new Date().toISOString(),
+        request_id: c.req.header('CF-Ray') || 'unknown',
       },
-    }, error.statusCode);
+    }, err.statusCode);
+  }
+
+  // Handle validation errors (Zod)
+  if (err.name === 'ZodError') {
+    return c.json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid request data',
+        details: (err as any).errors,
+        timestamp: new Date().toISOString(),
+        request_id: c.req.header('CF-Ray') || 'unknown',
+      },
+    }, 400);
   }
 
   // Handle generic errors
@@ -61,11 +68,18 @@ export const errorHandler = (error: Error, c: Context) => {
     error: {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'An unexpected error occurred',
-      ...(c.env?.NODE_ENV === 'development' && {
-        stack: error.stack,
-        originalMessage: error.message,
-      }),
       timestamp: new Date().toISOString(),
+      request_id: c.req.header('CF-Ray') || 'unknown',
     },
   }, 500);
+};
+
+export const asyncHandler = (fn: Function) => {
+  return async (c: Context, next: Next) => {
+    try {
+      await fn(c, next);
+    } catch (error) {
+      await errorHandler(error as Error, c);
+    }
+  };
 };
