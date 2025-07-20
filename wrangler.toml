@@ -25,23 +25,23 @@ LOG_LEVEL = "info"
 # DATABASE_URL (for D1 or external database)
 # REDIS_URL (for Upstash Redis or similar)
 
-# D1 Database binding
+# D1 Database binding (update with your actual database_id)
 [[d1_databases]]
 binding = "DB"
 database_name = "skill-gap-db"
-database_id = "your-d1-database-id"
+database_id = "96482268-37bf-4082-bacd-18509c947738"
 
-# KV namespace for caching
+# KV namespace for caching (update with your actual namespace IDs)
 [[kv_namespaces]]
 binding = "CACHE"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-kv-namespace-id"
+id = "747058b5407243d9846eb3ca1d6ef563"
+preview_id = "1cbf2f6e3d594ddb9214dcc7986c1141"
 
-# Rate limiting using Durable Objects
-[[durable_objects.bindings]]
-name = "RATE_LIMITER"
-class_name = "RateLimiter"
+# Rate limiting using Durable Objects (requires paid plan)
+# [[durable_objects.bindings]]
+# name = "RATE_LIMITER"
+# class_name = "RateLimiter"
 
-[[migrations]]
-tag = "v1"
-new_classes = ["RateLimiter"]
+# [[migrations]]
+# tag = "v1"
+# new_classes = ["RateLimiter"]
