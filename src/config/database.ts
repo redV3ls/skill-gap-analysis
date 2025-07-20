@@ -1,63 +1,20 @@
-import { PrismaClient } from '@prisma/client';
+import { drizzle } from 'drizzle-orm/d1';
 import { logger } from '../utils/logger';
+import * as schema from '../db/schema';
 
-export const prisma = new PrismaClient({
-  log: [
-    {
-      emit: 'event',
-      level: 'query',
-    },
-    {
-      emit: 'event',
-      level: 'error',
-    },
-    {
-      emit: 'event',
-      level: 'info',
-    },
-    {
-      emit: 'event',
-      level: 'warn',
-    },
-  ],
-});
+export type Database = ReturnType<typeof drizzle<typeof schema>>;
 
-// Log database queries in development
-if (process.env.NODE_ENV === 'development') {
-  prisma.$on('query', (e) => {
-    logger.debug('Query: ' + e.query);
-    logger.debug('Params: ' + e.params);
-    logger.debug('Duration: ' + e.duration + 'ms');
-  });
+export function createDatabase(d1: D1Database): Database {
+  return drizzle(d1, { schema });
 }
 
-prisma.$on('error', (e) => {
-  logger.error('Database error:', e);
-});
-
-prisma.$on('info', (e) => {
-  logger.info('Database info:', e.message);
-});
-
-prisma.$on('warn', (e) => {
-  logger.warn('Database warning:', e.message);
-});
-
-export async function connectDatabase(): Promise<void> {
+export async function testDatabaseConnection(db: Database): Promise<void> {
   try {
-    await prisma.$connect();
-    logger.info('✅ Database connected successfully');
+    // Simple query to test connection
+    await db.select().from(schema.users).limit(1);
+    logger.info('✅ Database connection test successful');
   } catch (error) {
-    logger.error('❌ Database connection failed:', error);
+    logger.error('❌ Database connection test failed:', error);
     throw error;
-  }
-}
-
-export async function disconnectDatabase(): Promise<void> {
-  try {
-    await prisma.$disconnect();
-    logger.info('Database disconnected');
-  } catch (error) {
-    logger.error('Error disconnecting from database:', error);
   }
 }
