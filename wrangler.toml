@@ -12,7 +12,7 @@ name = "skill-gap-analysis-api-staging"
 [env.development]
 name = "skill-gap-analysis-api-dev"
 
-# Environment variables (set these in Cloudflare dashboard or via wrangler secret)
+# Environment variables (set these in Cloudflare dashboard or via wrangler secret) 
 [vars]
 NODE_ENV = "production"
 CORS_ORIGIN = "https://your-frontend-domain.com"
