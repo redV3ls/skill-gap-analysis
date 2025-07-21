@@ -4,6 +4,8 @@ import { AuthenticatedContext, requireAuth } from '../middleware/auth';
 import { CacheService } from '../services/cache';
 import { QueryOptimizer } from '../utils/queryOptimizer';
 import { DatabaseManager } from '../services/databaseManager';
+import { ErrorTrackingService } from '../services/errorTracking';
+import { LoggingService } from '../services/logging';
 
 const monitoring = new Hono<{ Bindings: Env }>();
 
@@ -209,6 +211,170 @@ monitoring.get('/jobs/stats', async (c: AuthenticatedContext) => {
     console.error('Error getting job stats:', error);
     return c.json({
       error: 'Failed to retrieve job statistics'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/errors/stats - Get error statistics
+ */
+monitoring.get('/errors/stats', async (c: AuthenticatedContext) => {
+  try {
+    const errorTracking = new ErrorTrackingService(c.env);
+    const stats = await errorTracking.getErrorStats();
+    
+    return c.json({
+      errors: stats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting error stats:', error);
+    return c.json({
+      error: 'Failed to retrieve error statistics'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/errors/:errorId - Get specific error details
+ */
+monitoring.get('/errors/:errorId', async (c: AuthenticatedContext) => {
+  try {
+    const errorId = c.req.param('errorId');
+    const errorTracking = new ErrorTrackingService(c.env);
+    const error = await errorTracking.getError(errorId);
+    
+    if (!error) {
+      return c.json({
+        error: 'Error record not found'
+      }, 404);
+    }
+    
+    return c.json(error);
+  } catch (error) {
+    console.error('Error getting error details:', error);
+    return c.json({
+      error: 'Failed to retrieve error details'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/errors - Query errors with filters
+ */
+monitoring.get('/errors', async (c: AuthenticatedContext) => {
+  try {
+    const code = c.req.query('code');
+    const level = c.req.query('level');
+    const startTime = c.req.query('startTime');
+    const endTime = c.req.query('endTime');
+    const limit = parseInt(c.req.query('limit') || '100');
+    
+    const errorTracking = new ErrorTrackingService(c.env);
+    const errors = await errorTracking.getErrors({
+      code,
+      level,
+      startTime,
+      endTime,
+      limit,
+    });
+    
+    return c.json({
+      errors,
+      count: errors.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error querying errors:', error);
+    return c.json({
+      error: 'Failed to query errors'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/logs/stats - Get log statistics
+ */
+monitoring.get('/logs/stats', async (c: AuthenticatedContext) => {
+  try {
+    const hours = parseInt(c.req.query('hours') || '24');
+    const logging = new LoggingService(c.env);
+    const stats = await logging.getLogStats(hours);
+    
+    return c.json({
+      logs: stats,
+      period: `${hours} hours`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting log stats:', error);
+    return c.json({
+      error: 'Failed to retrieve log statistics'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/logs - Query logs with filters
+ */
+monitoring.get('/logs', async (c: AuthenticatedContext) => {
+  try {
+    const level = c.req.query('level') as any;
+    const startTime = c.req.query('startTime');
+    const endTime = c.req.query('endTime');
+    const userId = c.req.query('userId');
+    const path = c.req.query('path');
+    const limit = parseInt(c.req.query('limit') || '100');
+    
+    const logging = new LoggingService(c.env);
+    const logs = await logging.queryLogs({
+      level,
+      startTime,
+      endTime,
+      userId,
+      path,
+      limit,
+    });
+    
+    return c.json({
+      logs,
+      count: logs.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error querying logs:', error);
+    return c.json({
+      error: 'Failed to query logs'
+    }, 500);
+  }
+});
+
+/**
+ * POST /monitoring/cleanup - Clean up old logs and errors
+ */
+monitoring.post('/cleanup', async (c: AuthenticatedContext) => {
+  try {
+    const { daysToKeep = 7 } = await c.req.json();
+    
+    const errorTracking = new ErrorTrackingService(c.env);
+    const logging = new LoggingService(c.env);
+    
+    const [clearedErrors, clearedLogs] = await Promise.all([
+      errorTracking.clearOldErrors(daysToKeep),
+      logging.cleanupOldLogs(daysToKeep),
+    ]);
+    
+    return c.json({
+      message: 'Cleanup completed',
+      clearedErrors,
+      clearedLogs,
+      daysKept: daysToKeep,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    return c.json({
+      error: 'Failed to perform cleanup'
     }, 500);
   }
 });

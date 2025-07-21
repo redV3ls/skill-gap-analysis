@@ -1,5 +1,6 @@
 import { Context, Next } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { ErrorTrackingService } from '../services/errorTracking';
 
 export class AppError extends Error {
   public statusCode: number;
@@ -17,23 +18,43 @@ export class AppError extends Error {
 }
 
 export const errorHandler = async (err: Error, c: Context) => {
+  const timestamp = new Date().toISOString();
+  const requestId = c.req.header('CF-Ray') || 'unknown';
+  
+  // Initialize error tracking if available
+  let errorTracker: ErrorTrackingService | null = null;
+  let errorId: string | null = null;
+  
+  try {
+    if (c.env?.CACHE) {
+      errorTracker = new ErrorTrackingService(c.env as any);
+      errorId = await errorTracker.trackError(err, c);
+    }
+  } catch (trackingError) {
+    // Don't let tracking errors break the error handler
+    console.error('Error tracking failed:', trackingError);
+  }
+
+  // Log error details
   console.error('Error occurred:', {
+    errorId,
     message: err.message,
     stack: err.stack,
     url: c.req.url,
     method: c.req.method,
-    timestamp: new Date().toISOString(),
+    timestamp,
   });
 
   // Handle Hono HTTP exceptions
   if (err instanceof HTTPException) {
     return c.json({
       error: {
+        id: errorId,
         code: 'HTTP_EXCEPTION',
         message: err.message,
         status: err.status,
-        timestamp: new Date().toISOString(),
-        request_id: c.req.header('CF-Ray') || 'unknown',
+        timestamp,
+        request_id: requestId,
       },
     }, err.status);
   }
@@ -42,10 +63,11 @@ export const errorHandler = async (err: Error, c: Context) => {
   if (err instanceof AppError) {
     return c.json({
       error: {
+        id: errorId,
         code: err.code,
         message: err.message,
-        timestamp: new Date().toISOString(),
-        request_id: c.req.header('CF-Ray') || 'unknown',
+        timestamp,
+        request_id: requestId,
       },
     }, err.statusCode as any);
   }
@@ -54,11 +76,12 @@ export const errorHandler = async (err: Error, c: Context) => {
   if (err.name === 'ZodError') {
     return c.json({
       error: {
+        id: errorId,
         code: 'VALIDATION_ERROR',
         message: 'Invalid request data',
         details: (err as any).errors,
-        timestamp: new Date().toISOString(),
-        request_id: c.req.header('CF-Ray') || 'unknown',
+        timestamp,
+        request_id: requestId,
       },
     }, 400);
   }
@@ -66,10 +89,11 @@ export const errorHandler = async (err: Error, c: Context) => {
   // Handle generic errors
   return c.json({
     error: {
+      id: errorId,
       code: 'INTERNAL_SERVER_ERROR',
       message: 'An unexpected error occurred',
-      timestamp: new Date().toISOString(),
-      request_id: c.req.header('CF-Ray') || 'unknown',
+      timestamp,
+      request_id: requestId,
     },
   }, 500);
 };
