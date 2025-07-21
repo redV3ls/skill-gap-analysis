@@ -7,7 +7,11 @@ module.exports = {
     '**/?(*.)+(spec|test).ts',
   ],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', {
+      tsconfig: {
+        types: ['@cloudflare/workers-types', 'jest', 'node']
+      }
+    }],
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -21,7 +25,6 @@ module.exports = {
     'lcov',
     'html',
   ],
-
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
-  testTimeout: 10000,
+  testTimeout: 10000
 };

@@ -1,10 +1,10 @@
 import { Context, Next } from 'hono';
-import { jwt, verify, sign } from 'hono/jwt';
+import { verify, sign } from 'hono/jwt';
 import { AppError } from './errorHandler';
 import { Env } from '../index';
 import { z } from 'zod';
 
-export interface AuthenticatedContext extends Context {
+export interface AuthenticatedContext extends Context<{ Bindings: Env }> {
   user?: {
     id: string;
     email: string;
@@ -30,12 +30,13 @@ export interface JWTPayload {
   role: string;
   iat: number;
   exp: number;
+  [key: string]: any; // Add index signature for Hono compatibility
 }
 
 // Generate JWT token
 export const generateJWT = async (payload: Omit<JWTPayload, 'iat' | 'exp'>, secret: string, expiresIn: number = 86400): Promise<string> => {
   const now = Math.floor(Date.now() / 1000);
-  const fullPayload: JWTPayload = {
+  const fullPayload: any = {
     ...payload,
     iat: now,
     exp: now + expiresIn,
@@ -150,7 +151,7 @@ export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) 
       }
       
       // Set user context from API key
-      (c as AuthenticatedContext).user = {
+      (c as any).user = {
         id: apiKeyData.userId,
         email: '', // API keys don't have email context
         role: apiKeyData.permissions.includes('admin') ? 'admin' : 'user',
@@ -171,7 +172,7 @@ export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) 
     const token = authHeader.substring(7);
     
     try {
-      const payload = await verify(token, c.env.JWT_SECRET) as JWTPayload;
+      const payload = await verify(token, c.env.JWT_SECRET) as any;
       
       // Check token expiration
       const now = Math.floor(Date.now() / 1000);
@@ -179,7 +180,7 @@ export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) 
         throw new AppError('Token has expired', 401, 'EXPIRED_TOKEN');
       }
       
-      (c as AuthenticatedContext).user = {
+      (c as any).user = {
         id: payload.id,
         email: payload.email,
         role: payload.role,

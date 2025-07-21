@@ -3,13 +3,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserProfileService, CreateUserProfileInput, UserSkillInput } from '../db/userProfile';
 
 // Mock database
-const mockDb = {
+const mockDb: any = {
   transaction: jest.fn(),
   select: jest.fn(),
   insert: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
-} as any;
+};
 
 // Mock logger
 jest.mock('../utils/logger', () => ({
@@ -63,7 +63,7 @@ describe('UserProfileService', () => {
         const mockTx = {
           insert: jest.fn().mockReturnValue({
             values: jest.fn().mockReturnValue({
-              returning: jest.fn().mockResolvedValue([mockProfile]),
+              returning: jest.fn().mockResolvedValue([mockProfile] as never),
             }),
           }),
         };
@@ -74,6 +74,7 @@ describe('UserProfileService', () => {
 
       const input: CreateUserProfileInput = {
         userId: mockUserId,
+        skills: [],
         title: 'Software Engineer',
         industry: 'Technology',
         location: 'San Francisco, CA',
@@ -104,7 +105,7 @@ describe('UserProfileService', () => {
       mockDb.select.mockReturnValue({
         from: jest.fn().mockReturnValue({
           where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([]),
+            limit: jest.fn().mockResolvedValue([] as never),
           }),
         }),
       });
@@ -123,6 +124,7 @@ describe('UserProfileService', () => {
         const mockSkill: UserSkillInput = {
           skillId: mockSkillId,
           level: level as any,
+          certifications: [],
         };
         expect(mockSkill.level).toBe(level);
       });
@@ -136,6 +138,7 @@ describe('UserProfileService', () => {
       validStyles.forEach(style => {
         const input: CreateUserProfileInput = {
           userId: mockUserId,
+          skills: [],
           learningStyle: style as any,
         };
         expect(input.learningStyle).toBe(style);

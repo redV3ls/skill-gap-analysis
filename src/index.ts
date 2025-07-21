@@ -7,6 +7,8 @@ import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
 import { rateLimiter } from './middleware/rateLimiter';
 import authRoutes from './routes/auth';
+import analyzeRoutes from './routes/analyze';
+import usersRoutes from './routes/users';
 
 export interface Env {
   // Cloudflare bindings
@@ -120,6 +122,12 @@ app.get('/health/detailed', async (c) => {
 // Mount auth routes
 app.route('/api/v1/auth', authRoutes);
 
+// Mount analyze routes
+app.route('/api/v1/analyze', analyzeRoutes);
+
+// Mount users routes
+app.route('/api/v1/users', usersRoutes);
+
 // API root endpoint
 app.get('/api/v1', (c) => {
   return c.json({
@@ -139,6 +147,13 @@ app.get('/api/v1', (c) => {
       analyze: {
         gap: 'POST /api/v1/analyze/gap',
         team: 'POST /api/v1/analyze/team',
+      },
+      users: {
+        profile: 'GET /api/v1/users/profile',
+        updateProfile: 'POST /api/v1/users/profile',
+        updateSkills: 'PUT /api/v1/users/profile/skills',
+        skillHistory: 'GET /api/v1/users/profile/skills/history',
+        removeSkill: 'DELETE /api/v1/users/profile/skills/:skillId',
       },
       trends: {
         industry: 'GET /api/v1/trends/industry/{industry_id}',

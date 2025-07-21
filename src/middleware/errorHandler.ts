@@ -47,7 +47,7 @@ export const errorHandler = async (err: Error, c: Context) => {
         timestamp: new Date().toISOString(),
         request_id: c.req.header('CF-Ray') || 'unknown',
       },
-    }, err.statusCode);
+    }, err.statusCode as any);
   }
 
   // Handle validation errors (Zod)
