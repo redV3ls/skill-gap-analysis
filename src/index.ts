@@ -6,6 +6,8 @@ import { secureHeaders } from 'hono/secure-headers';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
 import { rateLimiter } from './middleware/rateLimiter';
+import { compressionMiddleware } from './middleware/compression';
+import { performanceTrackingMiddleware } from './middleware/performanceTracking';
 import authRoutes from './routes/auth';
 import analyzeRoutes from './routes/analyze';
 import usersRoutes from './routes/users';
@@ -35,6 +37,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.onError(errorHandler);
 
 // Global middleware
+app.use('*', performanceTrackingMiddleware);
 app.use('*', logger());
 app.use('*', prettyJSON());
 app.use('*', secureHeaders({
@@ -61,6 +64,9 @@ app.use('*', cors({
   credentials: true,
   maxAge: 86400, // 24 hours
 }));
+
+// Compression middleware (before rate limiting to compress all responses)
+app.use('*', compressionMiddleware);
 
 // Rate limiting middleware
 app.use('*', rateLimiter);

@@ -3,6 +3,7 @@ import { Env } from '../index';
 import { AuthenticatedContext, requireAuth } from '../middleware/auth';
 import { CacheService } from '../services/cache';
 import { QueryOptimizer } from '../utils/queryOptimizer';
+import { DatabaseManager } from '../services/databaseManager';
 
 const monitoring = new Hono<{ Bindings: Env }>();
 
@@ -94,6 +95,31 @@ monitoring.get('/performance', async (c: AuthenticatedContext) => {
     console.error('Error getting performance metrics:', error);
     return c.json({
       error: 'Failed to retrieve performance metrics'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/database/metrics - Get database query metrics
+ */
+monitoring.get('/database/metrics', async (c: AuthenticatedContext) => {
+  try {
+    const cacheService = new CacheService(c.env.CACHE);
+    const dbManager = new DatabaseManager(c.env.DB, cacheService);
+    const metrics = dbManager.getMetrics();
+    
+    return c.json({
+      database: {
+        ...metrics,
+        status: 'operational',
+        backend: 'Cloudflare D1'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting database metrics:', error);
+    return c.json({
+      error: 'Failed to retrieve database metrics'
     }, 500);
   }
 });
