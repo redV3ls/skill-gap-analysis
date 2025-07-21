@@ -168,6 +168,52 @@ monitoring.get('/database/indexes', async (c: AuthenticatedContext) => {
 });
 
 /**
+ * GET /monitoring/jobs/stats - Get async job statistics
+ */
+monitoring.get('/jobs/stats', async (c: AuthenticatedContext) => {
+  try {
+    const cacheService = new CacheService(c.env.CACHE);
+    
+    // Get scheduler stats
+    const schedulerStats = await cacheService.get('scheduler:stats');
+    
+    // Get last scheduled run info
+    const lastRun = await cacheService.get('scheduled_run:last');
+    
+    // Count jobs by status
+    const { keys } = await c.env.CACHE.list({ prefix: 'job:' });
+    const jobCounts = {
+      total: 0,
+      pending: 0,
+      processing: 0,
+      completed: 0,
+      failed: 0,
+      cancelled: 0,
+    };
+    
+    for (const key of keys) {
+      const job = await c.env.CACHE.get(key.name, 'json') as any;
+      if (job) {
+        jobCounts.total++;
+        jobCounts[job.status] = (jobCounts[job.status] || 0) + 1;
+      }
+    }
+    
+    return c.json({
+      jobs: jobCounts,
+      scheduler: schedulerStats || { status: 'no data' },
+      lastScheduledRun: lastRun || { status: 'never run' },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting job stats:', error);
+    return c.json({
+      error: 'Failed to retrieve job statistics'
+    }, 500);
+  }
+});
+
+/**
  * GET /monitoring/health/dependencies - Check health of all dependencies
  */
 monitoring.get('/health/dependencies', async (c: AuthenticatedContext) => {

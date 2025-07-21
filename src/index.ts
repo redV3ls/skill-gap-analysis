@@ -224,7 +224,7 @@ app.notFound((c) => {
 });
 
 // Export for scheduled workers
-export { default as scheduled } from './workers/queueWorker';
+export { default as scheduled } from './scheduled';
 
 export default app;
 
