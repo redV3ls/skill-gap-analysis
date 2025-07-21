@@ -45,3 +45,13 @@ preview_id = "1cbf2f6e3d594ddb9214dcc7986c1141"
 # [[migrations]]
 # tag = "v1"
 # new_classes = ["RateLimiter"]
+
+# Scheduled triggers for async job processing
+[triggers]
+crons = ["*/5 * * * *"] # Run every 5 minutes
+
+# For Durable Objects (requires paid plan)
+# [[durable_objects.bindings]]
+# name = "QUEUE_PROCESSOR"
+# class_name = "QueueProcessor"
+# script_name = "skill-gap-analysis-api"

@@ -1,0 +1,198 @@
+import { Hono } from 'hono';
+import { Env } from '../index';
+import { AuthenticatedContext, requireAuth } from '../middleware/auth';
+import { CacheService } from '../services/cache';
+import { QueryOptimizer } from '../utils/queryOptimizer';
+
+const monitoring = new Hono<{ Bindings: Env }>();
+
+// Apply authentication to monitoring routes
+monitoring.use('*', requireAuth);
+
+/**
+ * GET /monitoring/cache/stats - Get cache statistics
+ */
+monitoring.get('/cache/stats', async (c: AuthenticatedContext) => {
+  try {
+    const cacheService = new CacheService(c.env.CACHE);
+    const stats = await cacheService.getStats();
+    
+    return c.json({
+      cache: {
+        ...stats,
+        status: 'operational',
+        backend: 'Cloudflare KV'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting cache stats:', error);
+    return c.json({
+      cache: {
+        status: 'error',
+        error: 'Failed to retrieve cache statistics'
+      },
+      timestamp: new Date().toISOString()
+    }, 500);
+  }
+});
+
+/**
+ * POST /monitoring/cache/clear - Clear cache by namespace
+ */
+monitoring.post('/cache/clear', async (c: AuthenticatedContext) => {
+  try {
+    const { namespace } = await c.req.json();
+    
+    if (!namespace) {
+      return c.json({
+        error: 'Namespace is required'
+      }, 400);
+    }
+    
+    const cacheService = new CacheService(c.env.CACHE);
+    await cacheService.clearNamespace(namespace);
+    
+    return c.json({
+      message: `Cache cleared for namespace: ${namespace}`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+    return c.json({
+      error: 'Failed to clear cache'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/performance - Get performance metrics
+ */
+monitoring.get('/performance', async (c: AuthenticatedContext) => {
+  try {
+    // Get request metrics from KV (if we're tracking them)
+    const metricsKey = `metrics:${new Date().toISOString().split('T')[0]}`;
+    const metrics = await c.env.CACHE.get(metricsKey, 'json') || {
+      requests: 0,
+      avgResponseTime: 0,
+      errors: 0
+    };
+    
+    return c.json({
+      performance: {
+        daily: metrics,
+        uptime: process.uptime ? process.uptime() : 'N/A',
+        memory: process.memoryUsage ? process.memoryUsage() : 'N/A'
+      },
+      cloudflare: {
+        colo: c.req.header('CF-RAY')?.split('-')[1] || 'unknown',
+        country: c.req.header('CF-IPCountry') || 'unknown'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting performance metrics:', error);
+    return c.json({
+      error: 'Failed to retrieve performance metrics'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/database/indexes - Get database index recommendations
+ */
+monitoring.get('/database/indexes', async (c: AuthenticatedContext) => {
+  try {
+    const optimizer = new QueryOptimizer(c.env.DB);
+    const tables = [
+      'users',
+      'skills',
+      'gap_analyses',
+      'team_analyses',
+      'skill_demand_history',
+      'emerging_skills',
+      'regional_skill_trends',
+      'market_forecasts'
+    ];
+    
+    const recommendations: { [key: string]: string[] } = {};
+    
+    for (const table of tables) {
+      try {
+        const tableRecommendations = await optimizer.analyzeAndOptimize(table);
+        if (tableRecommendations.length > 0) {
+          recommendations[table] = tableRecommendations;
+        }
+      } catch (error) {
+        console.error(`Error analyzing table ${table}:`, error);
+      }
+    }
+    
+    return c.json({
+      recommendations,
+      totalRecommendations: Object.values(recommendations).flat().length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting index recommendations:', error);
+    return c.json({
+      error: 'Failed to analyze database indexes'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/health/dependencies - Check health of all dependencies
+ */
+monitoring.get('/health/dependencies', async (c: AuthenticatedContext) => {
+  const results: { [key: string]: { status: string; latency?: number; error?: string } } = {};
+  
+  // Check D1 Database
+  try {
+    const start = Date.now();
+    await c.env.DB.prepare('SELECT 1').first();
+    results.database = {
+      status: 'healthy',
+      latency: Date.now() - start
+    };
+  } catch (error) {
+    results.database = {
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+  
+  // Check KV Cache
+  try {
+    const start = Date.now();
+    const testKey = `health_check_${Date.now()}`;
+    await c.env.CACHE.put(testKey, 'ok', { expirationTtl: 60 });
+    const result = await c.env.CACHE.get(testKey);
+    await c.env.CACHE.delete(testKey);
+    
+    results.cache = {
+      status: result === 'ok' ? 'healthy' : 'degraded',
+      latency: Date.now() - start
+    };
+  } catch (error) {
+    results.cache = {
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+  
+  // Overall health
+  const overallHealth = Object.values(results).every(r => r.status === 'healthy') 
+    ? 'healthy' 
+    : Object.values(results).some(r => r.status === 'unhealthy') 
+    ? 'unhealthy' 
+    : 'degraded';
+  
+  return c.json({
+    status: overallHealth,
+    dependencies: results,
+    timestamp: new Date().toISOString()
+  });
+});
+
+export default monitoring;

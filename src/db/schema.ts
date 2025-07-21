@@ -138,3 +138,65 @@ export const industryTrends = sqliteTable('industry_trends', {
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Skill demand history table for tracking trends over time
+export const skillDemandHistory = sqliteTable('skill_demand_history', {
+  id: text('id').primaryKey(),
+  skillName: text('skill_name').notNull(),
+  industry: text('industry'),
+  region: text('region'),
+  demandScore: real('demand_score').notNull(),
+  jobCount: integer('job_count').notNull(),
+  avgSalary: integer('avg_salary'),
+  dataSource: text('data_source'), // e.g., 'linkedin', 'indeed', 'aggregate'
+  recordedAt: text('recorded_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Emerging skills table
+export const emergingSkills = sqliteTable('emerging_skills', {
+  id: text('id').primaryKey(),
+  skillName: text('skill_name').notNull(),
+  category: text('category').notNull(),
+  emergenceScore: real('emergence_score').notNull(), // 0.0 to 1.0
+  growthVelocity: real('growth_velocity').notNull(), // Rate of growth acceleration
+  firstDetected: text('first_detected').notNull(),
+  relatedSkills: text('related_skills'), // JSON array
+  industries: text('industries'), // JSON array of affected industries
+  predictedPeakDemand: text('predicted_peak_demand'),
+  confidence: real('confidence').notNull(), // Confidence in prediction
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Regional skill trends table
+export const regionalSkillTrends = sqliteTable('regional_skill_trends', {
+  id: text('id').primaryKey(),
+  region: text('region').notNull(),
+  country: text('country'),
+  city: text('city'),
+  skillName: text('skill_name').notNull(),
+  demandScore: real('demand_score').notNull(),
+  supplyScore: real('supply_score').notNull(), // Available talent
+  gapScore: real('gap_score').notNull(), // Demand - Supply
+  avgSalary: integer('avg_salary'),
+  salaryGrowth: real('salary_growth'), // YoY percentage
+  jobGrowth: real('job_growth'), // YoY percentage
+  analysisDate: text('analysis_date').default(sql`CURRENT_TIMESTAMP`),
+});
+
+// Market forecasts table
+export const marketForecasts = sqliteTable('market_forecasts', {
+  id: text('id').primaryKey(),
+  skillName: text('skill_name').notNull(),
+  industry: text('industry'),
+  region: text('region'),
+  forecastType: text('forecast_type').notNull(), // 'demand', 'salary', 'growth'
+  currentValue: real('current_value').notNull(),
+  forecast3Months: real('forecast_3_months'),
+  forecast6Months: real('forecast_6_months'),
+  forecast1Year: real('forecast_1_year'),
+  forecast2Years: real('forecast_2_years'),
+  confidence: real('confidence').notNull(), // 0.0 to 1.0
+  methodology: text('methodology'), // Algorithm/model used
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});

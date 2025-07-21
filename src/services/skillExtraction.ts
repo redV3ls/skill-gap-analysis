@@ -1,7 +1,7 @@
-const pdfParse = require('pdf-parse');
-import * as mammoth from 'mammoth';
-import * as natural from 'natural';
-const compromise = require('compromise');
+// Document parsing in Workers environment
+// For production, use external services or pre-processed text
+// Text processing for Workers environment
+// Using built-in string methods instead of external NLP libraries
 import { logger } from '../utils/logger';
 
 export interface ExtractedSkill {
@@ -34,28 +34,26 @@ export class SkillExtractionService {
 
   /**
    * Parse PDF document and extract text
+   * In Workers, this would use an external API service
    */
   async parsePDF(buffer: ArrayBuffer): Promise<string> {
-    try {
-      const data = await pdfParse(Buffer.from(buffer));
-      return data.text;
-    } catch (error) {
-      logger.error('PDF parsing failed:', error);
-      throw new Error('Failed to parse PDF document');
-    }
+    // In production, you would:
+    // 1. Upload to a document parsing service API
+    // 2. Or use Cloudflare R2 + Workers AI
+    // 3. Or require pre-processed text from client
+    throw new Error('PDF parsing requires external service in Workers environment');
   }
 
   /**
    * Parse DOCX document and extract text
+   * In Workers, this would use an external API service
    */
   async parseDOCX(buffer: ArrayBuffer): Promise<string> {
-    try {
-      const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) });
-      return result.value;
-    } catch (error) {
-      logger.error('DOCX parsing failed:', error);
-      throw new Error('Failed to parse DOCX document');
-    }
+    // In production, you would:
+    // 1. Upload to a document parsing service API
+    // 2. Or use Cloudflare R2 + Workers AI
+    // 3. Or require pre-processed text from client
+    throw new Error('DOCX parsing requires external service in Workers environment');
   }
 
   /**
@@ -106,9 +104,6 @@ export class SkillExtractionService {
     const skills: ExtractedSkill[] = [];
     const normalizedText = text.toLowerCase();
     
-    // Use compromise for NLP processing
-    const doc = compromise(text);
-    
     // Extract technical skills using keyword matching
     for (const [category, keywords] of this.skillKeywords.entries()) {
       for (const keyword of keywords) {
@@ -136,8 +131,7 @@ export class SkillExtractionService {
       }
     }
 
-    // Extract skills from job titles and sections
-    const jobTitles = doc.match('#Person').out('array');
+    // Extract skills from technical sections
     const techSections = this.extractTechnicalSections(text);
     
     // Process technical sections for additional skills

@@ -9,6 +9,10 @@ import { rateLimiter } from './middleware/rateLimiter';
 import authRoutes from './routes/auth';
 import analyzeRoutes from './routes/analyze';
 import usersRoutes from './routes/users';
+import monitoringRoutes from './routes/monitoring';
+import jobsRoutes from './routes/jobs';
+import { cacheMiddleware, userCacheMiddleware } from './middleware/cache';
+import { CacheNamespaces, CacheTTL } from './services/cache';
 
 export interface Env {
   // Cloudflare bindings
@@ -128,6 +132,12 @@ app.route('/api/v1/analyze', analyzeRoutes);
 // Mount users routes
 app.route('/api/v1/users', usersRoutes);
 
+// Mount monitoring routes (admin only)
+app.route('/api/v1/monitoring', monitoringRoutes);
+
+// Mount jobs routes for async processing
+app.route('/api/v1/jobs', jobsRoutes);
+
 // API root endpoint
 app.get('/api/v1', (c) => {
   return c.json({
@@ -157,8 +167,20 @@ app.get('/api/v1', (c) => {
       },
       trends: {
         industry: 'GET /api/v1/trends/industry/{industry_id}',
-        skills: 'GET /api/v1/trends/skills/emerging',
+        emerging: 'GET /api/v1/trends/skills/emerging',
+        declining: 'GET /api/v1/trends/skills/declining',
+        velocity: 'GET /api/v1/trends/skills/velocity',
         geographic: 'GET /api/v1/trends/geographic/{region}',
+        forecast: 'POST /api/v1/trends/forecast',
+      },
+      jobs: {
+        submitGapAnalysis: 'POST /api/v1/jobs/gap-analysis',
+        submitTeamAnalysis: 'POST /api/v1/jobs/team-analysis',
+        submitBulkImport: 'POST /api/v1/jobs/bulk-import',
+        getJobStatus: 'GET /api/v1/jobs/{jobId}',
+        getJobResult: 'GET /api/v1/jobs/{jobId}/result',
+        listJobs: 'GET /api/v1/jobs',
+        cancelJob: 'DELETE /api/v1/jobs/{jobId}',
       },
     },
     timestamp: new Date().toISOString(),
@@ -194,6 +216,9 @@ app.notFound((c) => {
     },
   }, 404);
 });
+
+// Export for scheduled workers
+export { default as scheduled } from './workers/queueWorker';
 
 export default app;
 
