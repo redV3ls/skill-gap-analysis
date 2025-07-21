@@ -13,6 +13,8 @@ import analyzeRoutes from './routes/analyze';
 import usersRoutes from './routes/users';
 import monitoringRoutes from './routes/monitoring';
 import jobsRoutes from './routes/jobs';
+import gdprRoutes from './routes/gdpr';
+import auditRoutes from './routes/audit';
 import { cacheMiddleware, userCacheMiddleware } from './middleware/cache';
 import { CacheNamespaces, CacheTTL } from './services/cache';
 
@@ -144,6 +146,12 @@ app.route('/api/v1/monitoring', monitoringRoutes);
 // Mount jobs routes for async processing
 app.route('/api/v1/jobs', jobsRoutes);
 
+// Mount GDPR routes for data privacy compliance
+app.route('/api/v1/gdpr', gdprRoutes);
+
+// Mount audit routes for compliance logging
+app.route('/api/v1/audit', auditRoutes);
+
 // API root endpoint
 app.get('/api/v1', (c) => {
   return c.json({
@@ -187,6 +195,21 @@ app.get('/api/v1', (c) => {
         getJobResult: 'GET /api/v1/jobs/{jobId}/result',
         listJobs: 'GET /api/v1/jobs',
         cancelJob: 'DELETE /api/v1/jobs/{jobId}',
+      },
+      gdpr: {
+        requestExport: 'POST /api/v1/gdpr/export',
+        getExportStatus: 'GET /api/v1/gdpr/export/{exportId}',
+        downloadExport: 'GET /api/v1/gdpr/export/{exportId}/download',
+        getExportHistory: 'GET /api/v1/gdpr/exports',
+        getDataCategories: 'GET /api/v1/gdpr/categories',
+        deleteData: 'DELETE /api/v1/gdpr/data',
+      },
+      audit: {
+        myLogs: 'GET /api/v1/audit/my-logs',
+        myStats: 'GET /api/v1/audit/my-stats',
+        adminLogs: 'GET /api/v1/audit/admin/logs',
+        adminStats: 'GET /api/v1/audit/admin/stats',
+        actions: 'GET /api/v1/audit/actions',
       },
     },
     timestamp: new Date().toISOString(),

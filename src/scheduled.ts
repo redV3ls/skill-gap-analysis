@@ -1,5 +1,6 @@
 import { Env } from './index';
 import { JobScheduler } from './services/jobScheduler';
+import { DataRetentionService } from './services/dataRetentionService';
 import { logger } from './utils/logger';
 
 export interface ScheduledEvent {
@@ -8,7 +9,7 @@ export interface ScheduledEvent {
 }
 
 /**
- * Scheduled handler for processing async jobs
+ * Scheduled handler for processing async jobs and data retention
  * Runs every 5 minutes based on wrangler.toml configuration
  */
 export default async function scheduled(
@@ -18,9 +19,13 @@ export default async function scheduled(
 ): Promise<void> {
   const startTime = Date.now();
   
-  logger.info(`Scheduled job processor started at ${new Date(event.scheduledTime).toISOString()}`);
+  logger.info(`Scheduled tasks started at ${new Date(event.scheduledTime).toISOString()}`);
   
   try {
+    // Run data retention purging first (it's usually faster)
+    await runDataRetentionPurge(env);
+    
+    // Then process async jobs
     // Create job scheduler with appropriate configuration
     const scheduler = new JobScheduler(env, {
       maxConcurrentJobs: 10, // Process up to 10 jobs concurrently
@@ -49,9 +54,9 @@ export default async function scheduled(
     const stats = await scheduler.getStats();
     const duration = Date.now() - startTime;
 
-    logger.info('Scheduled job processor completed', {
+    logger.info('Scheduled tasks completed', {
       duration,
-      stats: {
+      jobStats: {
         totalProcessed: stats.totalProcessed,
         totalFailed: stats.totalFailed,
         currentQueueSize: stats.currentQueueSize,
@@ -70,7 +75,7 @@ export default async function scheduled(
     });
 
   } catch (error) {
-    logger.error('Scheduled job processor error:', error);
+    logger.error('Scheduled tasks error:', error);
     
     // Store error metrics
     await storeScheduledRunMetrics(env, {
@@ -101,6 +106,37 @@ async function storeScheduledRunMetrics(
     }));
   } catch (error) {
     logger.error('Failed to store scheduled run metrics:', error);
+  }
+}
+
+/**
+ * Run data retention purging
+ */
+async function runDataRetentionPurge(env: Env): Promise<void> {
+  const startTime = Date.now();
+  logger.info('Starting data retention purge');
+  
+  try {
+    const retentionService = new DataRetentionService(env);
+    const results = await retentionService.purgeExpiredData();
+    
+    const duration = Date.now() - startTime;
+    logger.info('Data retention purge completed', {
+      duration,
+      results,
+    });
+    
+    // Store retention metrics
+    await env.CACHE.put('retention:last_run', JSON.stringify({
+      timestamp: new Date().toISOString(),
+      duration,
+      results,
+    }), {
+      expirationTtl: 86400 * 30, // Keep for 30 days
+    });
+  } catch (error) {
+    logger.error('Data retention purge failed:', error);
+    throw error;
   }
 }
 
