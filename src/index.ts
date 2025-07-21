@@ -17,6 +17,7 @@ import gdprRoutes from './routes/gdpr';
 import auditRoutes from './routes/audit';
 import { cacheMiddleware, userCacheMiddleware } from './middleware/cache';
 import { CacheNamespaces, CacheTTL } from './services/cache';
+import { createOpenAPIApp } from './lib/openapi';
 
 export interface Env {
   // Cloudflare bindings
@@ -151,6 +152,10 @@ app.route('/api/v1/gdpr', gdprRoutes);
 
 // Mount audit routes for compliance logging
 app.route('/api/v1/audit', auditRoutes);
+
+// Mount OpenAPI documentation
+const openAPIApp = createOpenAPIApp();
+app.route('/', openAPIApp);
 
 // API root endpoint
 app.get('/api/v1', (c) => {
