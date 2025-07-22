@@ -8,6 +8,7 @@ import { GapAnalysisService } from '../services/gapAnalysis';
 import { SkillMatchingService, UserSkill } from '../services/skillMatching';
 import { JobAnalysisService, JobSkillRequirement } from '../services/jobAnalysis';
 import { TrendsAnalysisService } from '../services/trendsAnalysis';
+import { TeamAnalysisService, TeamMember, ProjectRequirements } from '../services/teamAnalysis';
 import { createDatabase } from '../config/database';
 import { CacheService, CacheNamespaces, CacheTTL } from '../services/cache';
 
@@ -239,145 +240,74 @@ analyze.post('/team', validateRequest(teamAnalysisRequestSchema), async (c: Auth
     const skillMatchingService = new SkillMatchingService(database);
     const gapAnalysisService = new GapAnalysisService(skillMatchingService);
     const jobAnalysisService = new JobAnalysisService();
+    const teamAnalysisService = new TeamAnalysisService(gapAnalysisService, jobAnalysisService);
     
-    // Extract project requirements
-    const projectSkillRequirements: JobSkillRequirement[] = await jobAnalysisService.analyzeJobDescription(
-      project_requirements.description || `Project: ${project_requirements.name}. Required skills: ${project_requirements.required_skills.join(', ')}`,
-      project_requirements.name
-    ).then(result => result.skillRequirements);
-    
-    // Process each team member
-    const teamAnalysisResults = [];
-    const teamSkillsMap = new Map<string, number>(); // skill -> count of team members who have it
-    const teamGapsMap = new Map<string, number>(); // skill -> count of team members who need it
-    
-    for (const member of team_members) {
-      // Convert member skills to internal format
-      const memberSkills: UserSkill[] = member.skills.map((skill: any) => ({
+    // Convert team members to internal format
+    const teamMembers: TeamMember[] = team_members.map((member: any) => ({
+      id: member.id,
+      name: member.name,
+      role: member.role,
+      department: member.department,
+      skills: member.skills.map((skill: any) => ({
         skillId: crypto.randomUUID(),
         skillName: skill.skill,
-        skillCategory: 'General',
+        skillCategory: 'General', // Will be categorized by the service
         level: skill.level,
         yearsExperience: skill.years_experience || 0,
         confidenceScore: 0.8,
         certifications: skill.certifications || []
-      }));
-      
-      // Perform individual gap analysis
-      const memberGapAnalysis = await gapAnalysisService.analyzeGaps(memberSkills, projectSkillRequirements);
-      
-      // Track team-wide skills and gaps
-      memberSkills.forEach(skill => {
-        const count = teamSkillsMap.get(skill.skillName) || 0;
-        teamSkillsMap.set(skill.skillName, count + 1);
-      });
-      
-      memberGapAnalysis.skillGaps.forEach(gap => {
-        const count = teamGapsMap.get(gap.skillName) || 0;
-        teamGapsMap.set(gap.skillName, count + 1);
-      });
-      
-      teamAnalysisResults.push({
-        member_id: member.id,
-        member_name: member.name || `Member ${member.id}`,
-        role: member.role,
-        department: member.department,
-        overall_match: memberGapAnalysis.overallMatchPercentage,
-        skill_gaps: memberGapAnalysis.skillGaps.map(gap => ({
-          skill_name: gap.skillName,
-          category: gap.category,
-          current_level: gap.currentLevel,
-          required_level: gap.requiredLevel,
-          gap_severity: gap.gapSeverity,
-          priority: gap.priority,
-          time_to_competency: gap.timeToCompetency
-        })),
-        strengths: memberGapAnalysis.strengths.map(strength => ({
-          skill_name: strength.skillName,
-          level: strength.level,
-          years_experience: strength.yearsExperience,
-          category: strength.skillCategory
-        })),
-        recommendations: memberGapAnalysis.recommendations
-      });
-    }
+      })),
+      salary: member.salary,
+      hourlyRate: member.hourly_rate
+    }));
     
-    // Calculate team-wide statistics
-    const teamSize = team_members.length;
-    const teamOverallMatch = teamAnalysisResults.reduce((sum, member) => sum + member.overall_match, 0) / teamSize;
-    
-    // Identify critical team gaps (skills needed by most members)
-    const criticalTeamGaps = Array.from(teamGapsMap.entries())
-      .filter(([skill, count]) => count >= Math.ceil(teamSize * 0.5)) // 50% or more need this skill
-      .map(([skill, count]) => ({
-        skill_name: skill,
-        members_needing: count,
-        percentage_needing: Math.round((count / teamSize) * 100),
-        severity: count >= Math.ceil(teamSize * 0.8) ? 'critical' : 'moderate'
-      }))
-      .sort((a, b) => b.members_needing - a.members_needing);
-    
-    // Identify team strengths (skills most members have)
-    const teamStrengths = Array.from(teamSkillsMap.entries())
-      .filter(([skill, count]) => count >= Math.ceil(teamSize * 0.6)) // 60% or more have this skill
-      .map(([skill, count]) => ({
-        skill_name: skill,
-        members_having: count,
-        percentage_having: Math.round((count / teamSize) * 100),
-        coverage: count >= Math.ceil(teamSize * 0.8) ? 'excellent' : 'good'
-      }))
-      .sort((a, b) => b.members_having - a.members_having);
-    
-    // Generate team recommendations
-    const teamRecommendations = {
-      hiring_priorities: criticalTeamGaps
-        .filter(gap => gap.severity === 'critical')
-        .slice(0, 5)
-        .map(gap => `Consider hiring for ${gap.skill_name} (${gap.percentage_needing}% of team needs this)`),
-      
-      training_priorities: criticalTeamGaps
-        .filter(gap => gap.severity === 'moderate')
-        .slice(0, 5)
-        .map(gap => `Provide team training for ${gap.skill_name} (${gap.percentage_needing}% of team needs this)`),
-      
-      knowledge_sharing: teamStrengths
-        .slice(0, 3)
-        .map(strength => `Leverage team expertise in ${strength.skill_name} (${strength.percentage_having}% coverage)`),
-      
-      role_optimization: teamAnalysisResults
-        .filter(member => member.overall_match < 60)
-        .slice(0, 3)
-        .map(member => `Consider role adjustment for ${member.member_name} (${member.overall_match}% match)`)
+    // Convert project requirements to internal format
+    const projectReqs: ProjectRequirements = {
+      name: project_requirements.name,
+      description: project_requirements.description,
+      required_skills: project_requirements.required_skills,
+      timeline: project_requirements.timeline,
+      priority: project_requirements.priority,
+      budget: project_requirements.budget
     };
     
-    const processingTime = Date.now() - startTime;
+    // Perform team analysis using the service
+    const teamAnalysisResult = await teamAnalysisService.analyzeTeam(teamMembers, projectReqs);
     
-    // Format response
+    // Format response according to API design
     const response = {
-      analysis_id: crypto.randomUUID(),
+      analysis_id: teamAnalysisResult.analysis_id,
       user_id: c.user!.id,
-      project: {
-        name: project_requirements.name,
-        description: project_requirements.description,
-        timeline: project_requirements.timeline,
-        priority: project_requirements.priority
-      },
+      project: teamAnalysisResult.project,
       team_summary: {
-        total_members: teamSize,
-        overall_match: Math.round(teamOverallMatch),
-        critical_gaps_count: criticalTeamGaps.filter(gap => gap.severity === 'critical').length,
-        team_strengths_count: teamStrengths.length
+        total_members: teamAnalysisResult.team_summary.total_members,
+        overall_match: teamAnalysisResult.team_summary.overall_match,
+        critical_gaps_count: teamAnalysisResult.team_summary.critical_gaps_count,
+        team_strengths_count: teamAnalysisResult.team_summary.team_strengths_count,
+        skill_coverage_percentage: teamAnalysisResult.team_summary.skill_coverage_percentage
       },
-      member_analyses: teamAnalysisResults,
-      team_gaps: criticalTeamGaps,
-      team_strengths: teamStrengths,
-      recommendations: teamRecommendations,
+      member_analyses: teamAnalysisResult.member_analyses,
+      team_gaps: teamAnalysisResult.team_gaps.map(gap => ({
+        skill_name: gap.skill_name,
+        members_needing: gap.members_needing,
+        percentage_needing: gap.percentage_needing,
+        severity: gap.severity,
+        estimated_training_cost: gap.estimated_training_cost,
+        estimated_hiring_cost: gap.estimated_hiring_cost,
+        recommended_solution: gap.recommended_solution
+      })),
+      team_strengths: teamAnalysisResult.team_strengths.map(strength => ({
+        skill_name: strength.skill_name,
+        members_having: strength.members_having,
+        percentage_having: strength.percentage_having,
+        coverage: strength.coverage,
+        expertise_level: strength.expertise_level
+      })),
+      recommendations: teamAnalysisResult.recommendations,
+      budget_estimates: teamAnalysisResult.budget_estimates,
       metadata: {
-        processing_time: processingTime,
-        analysis_timestamp: new Date().toISOString(),
-        api_version: 'v1',
-        team_size: teamSize,
-        project_skills_analyzed: projectSkillRequirements.length
+        ...teamAnalysisResult.metadata,
+        api_version: 'v1'
       }
     };
     
@@ -395,9 +325,9 @@ analyze.post('/team', validateRequest(teamAnalysisRequestSchema), async (c: Auth
             response.analysis_id,
             c.user!.id,
             project_requirements.name,
-            teamSize,
-            Math.round(teamOverallMatch),
-            criticalTeamGaps.filter(gap => gap.severity === 'critical').length,
+            response.team_summary.total_members,
+            response.team_summary.overall_match,
+            response.team_summary.critical_gaps_count,
             new Date().toISOString(),
             JSON.stringify(response)
           )
