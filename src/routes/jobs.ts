@@ -74,7 +74,7 @@ const bulkImportSchema = z.object({
  */
 jobs.post('/gap-analysis', validateRequest(asyncGapAnalysisSchema), async (c: AuthenticatedContext) => {
   try {
-    const payload = (c.req as any).validatedData;
+    const payload = c.get('validatedData') as z.infer<typeof asyncGapAnalysisSchema>;
     const queueService = new QueueService(c.env);
     
     const message: QueueMessage = {
@@ -105,7 +105,7 @@ jobs.post('/gap-analysis', validateRequest(asyncGapAnalysisSchema), async (c: Au
  */
 jobs.post('/team-analysis', validateRequest(asyncTeamAnalysisSchema), async (c: AuthenticatedContext) => {
   try {
-    const payload = (c.req as any).validatedData;
+    const payload = c.get('validatedData') as z.infer<typeof asyncTeamAnalysisSchema>;
     const queueService = new QueueService(c.env);
     
     const message: QueueMessage = {
@@ -139,7 +139,7 @@ jobs.post('/team-analysis', validateRequest(asyncTeamAnalysisSchema), async (c: 
  */
 jobs.post('/bulk-import', validateRequest(bulkImportSchema), async (c: AuthenticatedContext) => {
   try {
-    const payload = (c.req as any).validatedData;
+    const payload = c.get('validatedData') as z.infer<typeof bulkImportSchema>;
     const queueService = new QueueService(c.env);
     
     // Validate data source

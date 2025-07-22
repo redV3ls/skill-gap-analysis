@@ -24,7 +24,8 @@ analyze.post('/gap', validateRequest(gapAnalysisRequestSchema), async (c: Authen
   const startTime = Date.now();
   
   try {
-    const { user_skills, target_job, analysis_options } = (c.req as any).validatedData;
+    const validatedData = c.get('validatedData') as z.infer<typeof gapAnalysisRequestSchema>;
+    const { user_skills, target_job, analysis_options } = validatedData;
     
     // Initialize database and services
     const database = createDatabase(c.env.DB);
@@ -230,7 +231,8 @@ analyze.post('/team', validateRequest(teamAnalysisRequestSchema), async (c: Auth
   const startTime = Date.now();
   
   try {
-    const { team_members, project_requirements, analysis_options } = (c.req as any).validatedData;
+    const validatedData = c.get('validatedData') as z.infer<typeof teamAnalysisRequestSchema>;
+    const { team_members, project_requirements, analysis_options } = validatedData;
     
     // Initialize services
     const database = createDatabase(c.env.DB);

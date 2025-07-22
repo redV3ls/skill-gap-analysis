@@ -44,7 +44,8 @@ auth.use('*', authRateLimiter);
 
 // User registration
 auth.post('/register', validateRequest(registerSchema), async (c) => {
-  const { email, password, name, organization } = c.req.validatedData;
+  const validatedData = c.get('validatedData') as z.infer<typeof registerSchema>;
+  const { email, password, name, organization } = validatedData;
   
   try {
     // Check if user already exists
@@ -98,7 +99,8 @@ auth.post('/register', validateRequest(registerSchema), async (c) => {
 
 // User login
 auth.post('/login', validateRequest(loginSchema), async (c) => {
-  const { email, password } = c.req.validatedData;
+  const validatedData = c.get('validatedData') as z.infer<typeof loginSchema>;
+  const { email, password } = validatedData;
   
   try {
     // Get user from database
@@ -187,7 +189,8 @@ auth.get('/me', requireAuth, async (c: AuthenticatedContext) => {
 
 // Create API key
 auth.post('/api-keys', requireAuth, validateRequest(apiKeyRequestSchema), async (c: AuthenticatedContext) => {
-  const { name, description, expires_at, permissions } = c.req.validatedData;
+  const validatedData = c.get('validatedData') as z.infer<typeof apiKeyRequestSchema>;
+  const { name, description, expires_at, permissions } = validatedData;
   
   try {
     const apiKey = generateApiKey();

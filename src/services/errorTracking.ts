@@ -88,7 +88,7 @@ export class ErrorTrackingService {
         url: context.req.url,
         path: new URL(context.req.url).pathname,
         query: this.parseQuery(context.req.url),
-        headers: this.sanitizeHeaders(context.req.headers),
+        headers: this.sanitizeHeaders(this.getRequestHeaders(context.req)),
         ip: context.req.header('CF-Connecting-IP'),
         country: context.req.header('CF-IPCountry'),
         colo: context.req.header('CF-Ray')?.split('-')[1],
@@ -133,7 +133,7 @@ export class ErrorTrackingService {
       );
 
       // Add to hourly index
-      const hourlyErrors = await this.env.CACHE.get(hourKey, 'json') || [];
+      const hourlyErrors = (await this.env.CACHE.get(hourKey, 'json') || []) as any[];
       hourlyErrors.push({
         id: errorRecord.id,
         timestamp: errorRecord.timestamp,
@@ -321,6 +321,26 @@ export class ErrorTrackingService {
     } catch {
       return {};
     }
+  }
+
+  private getRequestHeaders(req: any): Headers {
+    // Create a Headers object from the request
+    const headers = new Headers();
+    
+    // Common headers to check
+    const commonHeaders = [
+      'authorization', 'content-type', 'user-agent', 'accept',
+      'cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'x-api-key'
+    ];
+    
+    commonHeaders.forEach(headerName => {
+      const value = req.header(headerName);
+      if (value) {
+        headers.set(headerName, value);
+      }
+    });
+    
+    return headers;
   }
 
   private sanitizeHeaders(headers: Headers): Record<string, string> {

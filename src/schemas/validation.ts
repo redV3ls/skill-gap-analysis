@@ -1,4 +1,14 @@
 import { z } from 'zod';
+import { Context, Next } from 'hono';
+import { Env } from '../index';
+import { AppError } from '../middleware/errorHandler';
+
+// Extend Hono's context to include validatedData
+declare module 'hono' {
+  interface ContextVariableMap {
+    validatedData: any;
+  }
+}
 
 // Common validation schemas
 export const skillLevelSchema = z.enum(['beginner', 'intermediate', 'advanced', 'expert']);
@@ -84,29 +94,45 @@ export const apiKeyRequestSchema = z.object({
   permissions: z.array(z.enum(['read', 'write', 'admin'])).default(['read']),
 });
 
-// Validation middleware helper
-export const validateRequest = (schema: z.ZodSchema) => {
-  return async (c: any, next: any) => {
+// Extended context interface for validated requests
+export interface ValidatedContext<T = any> extends Context<{ Bindings: Env }> {
+  get(key: 'validatedData'): T;
+}
+
+// Validation middleware helper with proper typing
+export const validateRequest = <T extends z.ZodSchema>(schema: T) => {
+  return async (c: Context<{ Bindings: Env }>, next: Next) => {
     try {
       const body = await c.req.json();
       const validatedData = schema.parse(body);
-      c.req.validatedData = validatedData;
+      
+      // Attach validated data to context using Hono's set method
+      c.set('validatedData', validatedData);
+      
       await next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return c.json({
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'Invalid request data',
-            details: error.errors.map(err => ({
-              field: err.path.join('.'),
-              message: err.message,
-              code: err.code,
-            })),
-            timestamp: new Date().toISOString(),
-          },
-        }, 400);
+        // Create a detailed error response with validation details
+        const validationDetails = error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message,
+          code: err.code,
+        }));
+        
+        // Create enhanced error with details
+        const validationError = new AppError('Invalid request data', 400, 'VALIDATION_ERROR');
+        
+        // Attach validation details to the error
+        (validationError as any).details = validationDetails;
+        
+        throw validationError;
       }
+      
+      // Handle JSON parsing errors
+      if (error instanceof SyntaxError) {
+        throw new AppError('Invalid JSON format', 400, 'INVALID_JSON');
+      }
+      
       throw error;
     }
   };

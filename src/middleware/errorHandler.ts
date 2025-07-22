@@ -61,7 +61,7 @@ export const errorHandler = async (err: Error, c: Context) => {
 
   // Handle custom AppError
   if (err instanceof AppError) {
-    return c.json({
+    const errorResponse: any = {
       error: {
         id: errorId,
         code: err.code,
@@ -69,7 +69,14 @@ export const errorHandler = async (err: Error, c: Context) => {
         timestamp,
         request_id: requestId,
       },
-    }, err.statusCode as any);
+    };
+
+    // Include details if they exist (for validation errors)
+    if ((err as any).details) {
+      errorResponse.details = (err as any).details;
+    }
+
+    return c.json(errorResponse, err.statusCode as any);
   }
 
   // Handle validation errors (Zod)
