@@ -148,7 +148,7 @@ export class QueryOptimizationService {
     try {
       // Try cache first
       if (finalConfig.enableCaching) {
-        const cached = await this.cache.get(queryId, 'skills_taxonomy');
+        const cached = await this.cache.get<{ skills: any[]; total: number; hasMore: boolean }>(queryId, 'skills_taxonomy');
         if (cached) {
           this.recordQueryMetrics(queryId, Date.now() - startTime, cached.skills.length, true, ['cache_hit']);
           return cached;
@@ -237,7 +237,7 @@ export class QueryOptimizationService {
     try {
       // Try cache first
       if (finalConfig.enableCaching) {
-        const cached = await this.cache.get(queryId, 'gap_analysis');
+        const cached = await this.cache.get<{ analyses: any[]; total: number; hasMore: boolean }>(queryId, 'gap_analysis');
         if (cached) {
           this.recordQueryMetrics(queryId, Date.now() - startTime, cached.analyses.length, true, ['cache_hit']);
           return cached;
@@ -311,7 +311,7 @@ export class QueryOptimizationService {
         }, {} as Record<string, any[]>);
 
         // Attach skill gaps to analyses
-        analyses.forEach(analysis => {
+        analyses.forEach((analysis: any) => {
           analysis.skillGaps = skillGapsByAnalysis[analysis.id] || [];
         });
 
@@ -360,7 +360,7 @@ export class QueryOptimizationService {
     try {
       // Try cache first
       if (finalConfig.enableCaching) {
-        const cached = await this.cache.get(queryId, 'skill_trends');
+        const cached = await this.cache.get<any[]>(queryId, 'skill_trends');
         if (cached) {
           this.recordQueryMetrics(queryId, Date.now() - startTime, cached.length, true, ['cache_hit']);
           return cached;
@@ -453,7 +453,12 @@ export class QueryOptimizationService {
     try {
       // Try cache first
       if (finalConfig.enableCaching) {
-        const cached = await this.cache.get(queryId, 'search_results');
+        const cached = await this.cache.get<{
+          skills: any[];
+          jobs: any[];
+          users: any[];
+          totalResults: number;
+        }>(queryId, 'search_results');
         if (cached) {
           this.recordQueryMetrics(queryId, Date.now() - startTime, cached.totalResults, true, ['cache_hit']);
           return cached;
@@ -569,21 +574,21 @@ export class QueryOptimizationService {
     entityType: 'user' | 'skill' | 'job' | 'analysis',
     entityId?: string
   ): Promise<void> {
-    const tags = [entityType];
+    const tags: string[] = [entityType];
     
     // Add specific invalidation tags based on entity type
     switch (entityType) {
       case 'user':
-        tags.push('user_profile', 'user_skills');
+        tags.push('user', 'skills');
         break;
       case 'skill':
-        tags.push('skills_taxonomy', 'skill_matching', 'trends');
+        tags.push('skills', 'matching', 'trends');
         break;
       case 'job':
-        tags.push('job_requirements', 'gap_analysis');
+        tags.push('jobs', 'analysis');
         break;
       case 'analysis':
-        tags.push('gap_analysis', 'aggregations');
+        tags.push('analysis', 'aggregations');
         break;
     }
 
