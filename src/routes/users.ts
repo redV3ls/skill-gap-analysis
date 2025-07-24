@@ -6,11 +6,12 @@ import { AppError } from '../middleware/errorHandler';
 import { createDatabase } from '../config/database';
 import { users, userProfiles, userSkills, skills } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { logger } from '../utils/logger';
 
 const usersRouter = new Hono<{ Bindings: Env }>();
 
-// Apply authentication to all user routes
-usersRouter.use('*', requireAuth);
+// Note: Authentication is already applied globally in index.ts for /api/v1/* routes
+// We just need to ensure the user context is available
 
 // Validation schemas
 const userProfileSchema = z.object({
@@ -41,8 +42,21 @@ const updateSkillsSchema = z.object({
  */
 usersRouter.get('/profile', async (c: AuthenticatedContext) => {
   try {
+    // Validate environment
+    if (!c.env?.DB) {
+      logger.error('Database connection not available');
+      throw new AppError('Database connection not available', 500, 'DATABASE_UNAVAILABLE');
+    }
+
+    if (!c.user?.id) {
+      logger.error('User not authenticated');
+      throw new AppError('User not authenticated', 401, 'USER_NOT_AUTHENTICATED');
+    }
+
     const database = createDatabase(c.env.DB);
-    const userId = c.user!.id;
+    const userId = c.user.id;
+
+    logger.info(`Getting profile for user: ${userId}`);
 
     // Get user profile
     const profile = await database
@@ -50,6 +64,8 @@ usersRouter.get('/profile', async (c: AuthenticatedContext) => {
       .from(userProfiles)
       .where(eq(userProfiles.userId, userId))
       .limit(1);
+
+    logger.info(`Found ${profile.length} profile(s) for user: ${userId}`);
 
     // Get user skills with skill details
     const userSkillsData = await database
@@ -69,6 +85,8 @@ usersRouter.get('/profile', async (c: AuthenticatedContext) => {
       .innerJoin(skills, eq(userSkills.skillId, skills.id))
       .where(eq(userSkills.userId, profile[0]?.id || ''))
       .orderBy(skills.name);
+
+    logger.info(`Found ${userSkillsData.length} skills for user: ${userId}`);
 
     const profileData = profile[0];
     
@@ -98,13 +116,16 @@ usersRouter.get('/profile', async (c: AuthenticatedContext) => {
         updated_at: skill.updatedAt,
       })),
       user: {
-        id: c.user!.id,
-        email: c.user!.email,
+        id: c.user.id,
+        email: c.user.email,
       },
     });
 
   } catch (error) {
-    console.error('Get profile error:', error);
+    logger.error('Get profile error:', error);
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError('Failed to retrieve user profile', 500, 'PROFILE_RETRIEVAL_FAILED');
   }
 });
@@ -114,10 +135,23 @@ usersRouter.get('/profile', async (c: AuthenticatedContext) => {
  */
 usersRouter.post('/profile', async (c: AuthenticatedContext) => {
   try {
+    // Validate environment
+    if (!c.env?.DB) {
+      logger.error('Database connection not available');
+      throw new AppError('Database connection not available', 500, 'DATABASE_UNAVAILABLE');
+    }
+
+    if (!c.user?.id) {
+      logger.error('User not authenticated');
+      throw new AppError('User not authenticated', 401, 'USER_NOT_AUTHENTICATED');
+    }
+
     const body = await c.req.json();
     const validatedData = userProfileSchema.parse(body);
     const database = createDatabase(c.env.DB);
-    const userId = c.user!.id;
+    const userId = c.user.id;
+
+    logger.info(`Creating/updating profile for user: ${userId}`);
 
     // Check if profile exists
     const existingProfile = await database
@@ -125,6 +159,8 @@ usersRouter.post('/profile', async (c: AuthenticatedContext) => {
       .from(userProfiles)
       .where(eq(userProfiles.userId, userId))
       .limit(1);
+
+    logger.info(`Found ${existingProfile.length} existing profile(s) for user: ${userId}`);
 
     const profileData = {
       userId,
@@ -141,6 +177,7 @@ usersRouter.post('/profile', async (c: AuthenticatedContext) => {
     let profile;
     if (existingProfile.length > 0) {
       // Update existing profile
+      logger.info(`Updating existing profile for user: ${userId}`);
       profile = await database
         .update(userProfiles)
         .set(profileData)
@@ -148,6 +185,7 @@ usersRouter.post('/profile', async (c: AuthenticatedContext) => {
         .returning();
     } else {
       // Create new profile
+      logger.info(`Creating new profile for user: ${userId}`);
       profile = await database
         .insert(userProfiles)
         .values({
@@ -157,6 +195,8 @@ usersRouter.post('/profile', async (c: AuthenticatedContext) => {
         })
         .returning();
     }
+
+    logger.info(`Profile operation successful for user: ${userId}`);
 
     return c.json({
       profile: {
@@ -176,10 +216,15 @@ usersRouter.post('/profile', async (c: AuthenticatedContext) => {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.error('Validation error:', error.errors);
       throw new AppError('Invalid profile data', 400, 'VALIDATION_ERROR');
     }
     
-    console.error('Update profile error:', error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    
+    logger.error('Update profile error:', error);
     throw new AppError('Failed to update user profile', 500, 'PROFILE_UPDATE_FAILED');
   }
 });
@@ -189,10 +234,23 @@ usersRouter.post('/profile', async (c: AuthenticatedContext) => {
  */
 usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
   try {
+    // Validate environment
+    if (!c.env?.DB) {
+      logger.error('Database connection not available');
+      throw new AppError('Database connection not available', 500, 'DATABASE_UNAVAILABLE');
+    }
+
+    if (!c.user?.id) {
+      logger.error('User not authenticated');
+      throw new AppError('User not authenticated', 401, 'USER_NOT_AUTHENTICATED');
+    }
+
     const body = await c.req.json();
     const validatedData = updateSkillsSchema.parse(body);
     const database = createDatabase(c.env.DB);
-    const userId = c.user!.id;
+    const userId = c.user.id;
+
+    logger.info(`Updating skills for user: ${userId}`);
 
     // Get user profile
     const profile = await database
@@ -202,15 +260,19 @@ usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
       .limit(1);
 
     if (profile.length === 0) {
+      logger.error(`User profile not found for user: ${userId}`);
       throw new AppError('User profile not found. Please create a profile first.', 404, 'PROFILE_NOT_FOUND');
     }
 
     const profileId = profile[0].id;
+    logger.info(`Found profile ${profileId} for user: ${userId}`);
 
     // Process each skill
     const updatedSkills = [];
     
     for (const skillData of validatedData.skills) {
+      logger.info(`Processing skill: ${skillData.skill_name}`);
+      
       // Find or create skill in skills table
       let skill = await database
         .select()
@@ -220,6 +282,7 @@ usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
 
       if (skill.length === 0) {
         // Create new skill
+        logger.info(`Creating new skill: ${skillData.skill_name}`);
         skill = await database
           .insert(skills)
           .values({
@@ -258,6 +321,7 @@ usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
       let userSkill;
       if (existingUserSkill.length > 0) {
         // Update existing skill
+        logger.info(`Updating existing user skill: ${skillData.skill_name}`);
         userSkill = await database
           .update(userSkills)
           .set(userSkillData)
@@ -265,6 +329,7 @@ usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
           .returning();
       } else {
         // Create new user skill
+        logger.info(`Creating new user skill: ${skillData.skill_name}`);
         userSkill = await database
           .insert(userSkills)
           .values({
@@ -288,6 +353,8 @@ usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
       });
     }
 
+    logger.info(`Successfully updated ${updatedSkills.length} skills for user: ${userId}`);
+
     return c.json({
       skills: updatedSkills,
       message: 'Skills updated successfully',
@@ -296,6 +363,7 @@ usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logger.error('Skills validation error:', error.errors);
       throw new AppError('Invalid skills data', 400, 'VALIDATION_ERROR');
     }
     
@@ -303,7 +371,7 @@ usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
       throw error;
     }
     
-    console.error('Update skills error:', error);
+    logger.error('Update skills error:', error);
     throw new AppError('Failed to update user skills', 500, 'SKILLS_UPDATE_FAILED');
   }
 });
@@ -313,11 +381,24 @@ usersRouter.put('/profile/skills', async (c: AuthenticatedContext) => {
  */
 usersRouter.get('/profile/skills/history', async (c: AuthenticatedContext) => {
   try {
+    // Validate environment
+    if (!c.env?.DB) {
+      logger.error('Database connection not available');
+      throw new AppError('Database connection not available', 500, 'DATABASE_UNAVAILABLE');
+    }
+
+    if (!c.user?.id) {
+      logger.error('User not authenticated');
+      throw new AppError('User not authenticated', 401, 'USER_NOT_AUTHENTICATED');
+    }
+
     const database = createDatabase(c.env.DB);
-    const userId = c.user!.id;
+    const userId = c.user.id;
     
     const skillName = c.req.query('skill');
     const limit = Math.min(parseInt(c.req.query('limit') || '50'), 100);
+
+    logger.info(`Getting skill history for user: ${userId}, skill: ${skillName || 'all'}, limit: ${limit}`);
 
     // Get user profile
     const profile = await database
@@ -327,6 +408,7 @@ usersRouter.get('/profile/skills/history', async (c: AuthenticatedContext) => {
       .limit(1);
 
     if (profile.length === 0) {
+      logger.error(`User profile not found for user: ${userId}`);
       throw new AppError('User profile not found', 404, 'PROFILE_NOT_FOUND');
     }
 
@@ -378,6 +460,8 @@ usersRouter.get('/profile/skills/history', async (c: AuthenticatedContext) => {
 
     const skillHistory = await query;
 
+    logger.info(`Found ${skillHistory.length} skill history records for user: ${userId}`);
+
     return c.json({
       history: skillHistory.map(skill => ({
         id: skill.id,
@@ -403,7 +487,7 @@ usersRouter.get('/profile/skills/history', async (c: AuthenticatedContext) => {
       throw error;
     }
     
-    console.error('Get skill history error:', error);
+    logger.error('Get skill history error:', error);
     throw new AppError('Failed to retrieve skill history', 500, 'SKILL_HISTORY_RETRIEVAL_FAILED');
   }
 });
@@ -413,9 +497,22 @@ usersRouter.get('/profile/skills/history', async (c: AuthenticatedContext) => {
  */
 usersRouter.delete('/profile/skills/:skillId', async (c: AuthenticatedContext) => {
   try {
+    // Validate environment
+    if (!c.env?.DB) {
+      logger.error('Database connection not available');
+      throw new AppError('Database connection not available', 500, 'DATABASE_UNAVAILABLE');
+    }
+
+    if (!c.user?.id) {
+      logger.error('User not authenticated');
+      throw new AppError('User not authenticated', 401, 'USER_NOT_AUTHENTICATED');
+    }
+
     const skillId = c.req.param('skillId');
     const database = createDatabase(c.env.DB);
-    const userId = c.user!.id;
+    const userId = c.user.id;
+
+    logger.info(`Deleting skill ${skillId} for user: ${userId}`);
 
     // Get user profile
     const profile = await database
@@ -425,6 +522,7 @@ usersRouter.delete('/profile/skills/:skillId', async (c: AuthenticatedContext) =
       .limit(1);
 
     if (profile.length === 0) {
+      logger.error(`User profile not found for user: ${userId}`);
       throw new AppError('User profile not found', 404, 'PROFILE_NOT_FOUND');
     }
 
@@ -439,6 +537,7 @@ usersRouter.delete('/profile/skills/:skillId', async (c: AuthenticatedContext) =
       .limit(1);
 
     if (userSkill.length === 0) {
+      logger.error(`Skill ${skillId} not found for user: ${userId}`);
       throw new AppError('Skill not found in user profile', 404, 'SKILL_NOT_FOUND');
     }
 
@@ -446,6 +545,8 @@ usersRouter.delete('/profile/skills/:skillId', async (c: AuthenticatedContext) =
     await database
       .delete(userSkills)
       .where(eq(userSkills.id, skillId));
+
+    logger.info(`Successfully deleted skill ${skillId} for user: ${userId}`);
 
     return c.json({
       message: 'Skill removed successfully',
@@ -457,7 +558,7 @@ usersRouter.delete('/profile/skills/:skillId', async (c: AuthenticatedContext) =
       throw error;
     }
     
-    console.error('Delete skill error:', error);
+    logger.error('Delete skill error:', error);
     throw new AppError('Failed to remove skill', 500, 'SKILL_DELETION_FAILED');
   }
 });

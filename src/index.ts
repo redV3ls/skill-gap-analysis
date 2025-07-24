@@ -76,7 +76,14 @@ app.use('*', compressionMiddleware);
 app.use('*', rateLimiter);
 
 // Authentication middleware (applied after public routes)
-app.use('/api/v1/*', authMiddleware);
+// Skip auth for specific public endpoints
+app.use('/api/v1/*', async (c, next) => {
+  const publicPaths = ['/api/v1/auth/login', '/api/v1/auth/register'];
+  if (publicPaths.some(path => c.req.path.startsWith(path))) {
+    return next();
+  }
+  return authMiddleware(c, next);
+});
 
 // Basic health check
 app.get('/health', (c) => {

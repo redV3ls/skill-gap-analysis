@@ -1,24 +1,6 @@
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { IntelligentCachingService } from '../services/intelligentCaching';
 import { CacheInvalidationService } from '../services/cacheInvalidation';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { it } from 'node:test';
-import { it } from 'node:test';
-import { describe } from 'node:test';
-import { afterEach } from 'node:test';
-import { beforeEach } from 'node:test';
-import { describe } from 'node:test';
 
 // Mock environment for testing
 const createTestEnv = () => ({

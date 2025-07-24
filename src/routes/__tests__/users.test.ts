@@ -1,8 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { Hono } from 'hono';
 import { Env } from '../../index';
 import usersRoutes from '../users';
 import { generateJWT } from '../../middleware/auth';
+import { mockDrizzleDatabase } from '../../tests/mocks/database';
+
+// Mock the database creation function
+jest.mock('../../config/database', () => ({
+  createDatabase: jest.fn()
+}));
 
 // Mock environment for testing
 const mockEnv: Env = {
@@ -13,7 +19,12 @@ const mockEnv: Env = {
         all: jest.fn(),
         run: jest.fn()
       })
-    })
+    }),
+    select: jest.fn(),
+    insert: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    transaction: jest.fn()
   } as any,
   CACHE: {
     get: jest.fn(),
@@ -44,6 +55,9 @@ app.use('/users/*', async (c, next) => {
   if (authHeader?.startsWith('Bearer ')) {
     // Mock authenticated user
     (c as any).user = testUser;
+  } else {
+    // No authentication provided
+    throw new Error('Authentication required');
   }
   await next();
 });
@@ -104,8 +118,14 @@ describe('Users Routes', () => {
         }
       ];
 
-      // Mock database calls
-      const mockSelect = jest.fn()
+      // Mock the createDatabase function
+      const { createDatabase } = require('../../config/database');
+      const mockDb = mockDrizzleDatabase({
+        select: [mockProfile], // First call returns profile
+      });
+      
+      // Set up multiple select calls
+      mockDb.select
         .mockReturnValueOnce({
           from: jest.fn().mockReturnValue({
             where: jest.fn().mockReturnValue({
@@ -123,7 +143,7 @@ describe('Users Routes', () => {
           })
         });
 
-      (mockEnv.DB as any).select = mockSelect;
+      createDatabase.mockReturnValue(mockDb);
 
       const response = await app.request('/users/profile', {
         method: 'GET',
