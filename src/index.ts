@@ -15,6 +15,7 @@ import monitoringRoutes from './routes/monitoring';
 import jobsRoutes from './routes/jobs';
 import gdprRoutes from './routes/gdpr';
 import auditRoutes from './routes/audit';
+import trendsRoutes from './routes/trends';
 import { cacheMiddleware, userCacheMiddleware } from './middleware/cache';
 import { CacheNamespaces, CacheTTL } from './services/cache';
 import { createOpenAPIApp } from './lib/openapi';
@@ -152,6 +153,9 @@ app.route('/api/v1/gdpr', gdprRoutes);
 
 // Mount audit routes for compliance logging
 app.route('/api/v1/audit', auditRoutes);
+
+// Mount trends routes for market analysis
+app.route('/api/v1/trends', trendsRoutes);
 
 // Mount OpenAPI documentation
 const openAPIApp = createOpenAPIApp();

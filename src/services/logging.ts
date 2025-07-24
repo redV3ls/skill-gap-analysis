@@ -396,7 +396,7 @@ export class LoggingService {
     // Update aggregates
     for (const [hour, hourLogs] of hourlyGroups) {
       const key = `log:aggregate:${hour}`;
-      const existing = await this.env.CACHE.get(key, 'json') || {
+      const existing = await this.env.CACHE.get(key, 'json') as any || {
         count: 0,
         levels: {},
         paths: {},

@@ -380,6 +380,179 @@ monitoring.post('/cleanup', async (c: AuthenticatedContext) => {
 });
 
 /**
+ * GET /monitoring/dashboard - Get comprehensive performance dashboard
+ */
+monitoring.get('/dashboard', async (c: AuthenticatedContext) => {
+  try {
+    const timeRange = c.req.query('timeRange') as '1h' | '24h' | '7d' || '24h';
+    
+    const { PerformanceMetricsService } = await import('../services/performanceMetrics');
+    const performanceService = new PerformanceMetricsService(c.env);
+    
+    const dashboard = await performanceService.getDashboardMetrics(timeRange);
+    
+    return c.json({
+      dashboard,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting dashboard metrics:', error);
+    return c.json({
+      error: 'Failed to retrieve dashboard metrics'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/alerts/summary - Get alert summary
+ */
+monitoring.get('/alerts/summary', async (c: AuthenticatedContext) => {
+  try {
+    const errorTracking = new ErrorTrackingService(c.env);
+    const { ErrorRecoveryService } = await import('../services/errorRecovery');
+    const recoveryService = new ErrorRecoveryService(c.env);
+    
+    const [errorAlerts, circuitBreakerSummary] = await Promise.all([
+      errorTracking.getAlertSummary(),
+      recoveryService.getCircuitBreakerSummary(),
+    ]);
+    
+    return c.json({
+      alerts: {
+        errors: errorAlerts,
+        circuitBreakers: circuitBreakerSummary,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting alert summary:', error);
+    return c.json({
+      error: 'Failed to retrieve alert summary'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/circuit-breakers - Get all circuit breaker statuses
+ */
+monitoring.get('/circuit-breakers', async (c: AuthenticatedContext) => {
+  try {
+    const { ErrorRecoveryService } = await import('../services/errorRecovery');
+    const recoveryService = new ErrorRecoveryService(c.env);
+    
+    const circuitBreakers = await recoveryService.getAllCircuitBreakers();
+    
+    return c.json({
+      circuitBreakers,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting circuit breakers:', error);
+    return c.json({
+      error: 'Failed to retrieve circuit breaker status'
+    }, 500);
+  }
+});
+
+/**
+ * POST /monitoring/circuit-breakers/:serviceKey/reset - Reset circuit breaker
+ */
+monitoring.post('/circuit-breakers/:serviceKey/reset', async (c: AuthenticatedContext) => {
+  try {
+    const serviceKey = c.req.param('serviceKey');
+    
+    const { ErrorRecoveryService } = await import('../services/errorRecovery');
+    const recoveryService = new ErrorRecoveryService(c.env);
+    
+    await recoveryService.resetCircuitBreaker(serviceKey);
+    
+    return c.json({
+      message: `Circuit breaker reset for ${serviceKey}`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error resetting circuit breaker:', error);
+    return c.json({
+      error: 'Failed to reset circuit breaker'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/escalations - Get escalated alerts
+ */
+monitoring.get('/escalations', async (c: AuthenticatedContext) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '50');
+    
+    const errorTracking = new ErrorTrackingService(c.env);
+    const escalations = await errorTracking.getEscalations(limit);
+    
+    return c.json({
+      escalations,
+      count: escalations.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting escalations:', error);
+    return c.json({
+      error: 'Failed to retrieve escalations'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/health/indicators - Get system health indicators
+ */
+monitoring.get('/health/indicators', async (c: AuthenticatedContext) => {
+  try {
+    const errorTracking = new ErrorTrackingService(c.env);
+    const { PerformanceMetricsService } = await import('../services/performanceMetrics');
+    const performanceService = new PerformanceMetricsService(c.env);
+    
+    const [healthIndicators, systemHealth] = await Promise.all([
+      errorTracking.getHealthIndicators(),
+      performanceService.getSystemHealth(),
+    ]);
+    
+    return c.json({
+      health: {
+        ...healthIndicators,
+        performance: systemHealth,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting health indicators:', error);
+    return c.json({
+      error: 'Failed to retrieve health indicators'
+    }, 500);
+  }
+});
+
+/**
+ * POST /monitoring/performance/check-thresholds - Manually trigger performance threshold check
+ */
+monitoring.post('/performance/check-thresholds', async (c: AuthenticatedContext) => {
+  try {
+    const { PerformanceMetricsService } = await import('../services/performanceMetrics');
+    const performanceService = new PerformanceMetricsService(c.env);
+    
+    await performanceService.checkPerformanceThresholds();
+    
+    return c.json({
+      message: 'Performance threshold check completed',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error checking performance thresholds:', error);
+    return c.json({
+      error: 'Failed to check performance thresholds'
+    }, 500);
+  }
+});
+
+/**
  * GET /monitoring/health/dependencies - Check health of all dependencies
  */
 monitoring.get('/health/dependencies', async (c: AuthenticatedContext) => {

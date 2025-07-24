@@ -281,6 +281,108 @@ export class ErrorTrackingService {
   }
 
   /**
+   * Get alert summary for dashboard
+   */
+  async getAlertSummary(): Promise<any> {
+    try {
+      const summary = await this.env.CACHE.get('alerts:summary', 'json');
+      return summary || {
+        totalAlerts: 0,
+        alertsBySeverity: {},
+        alertsByCode: {},
+        recentAlerts: [],
+        lastUpdated: null,
+      };
+    } catch (err) {
+      console.error('Failed to get alert summary:', err);
+      return {
+        totalAlerts: 0,
+        alertsBySeverity: {},
+        alertsByCode: {},
+        recentAlerts: [],
+        lastUpdated: null,
+      };
+    }
+  }
+
+  /**
+   * Get escalations
+   */
+  async getEscalations(limit: number = 50): Promise<any[]> {
+    try {
+      const { keys } = await this.env.CACHE.list({ prefix: 'escalation:' });
+      const escalations = [];
+
+      for (const key of keys) {
+        const escalation = await this.env.CACHE.get(key.name, 'json');
+        if (escalation) {
+          escalations.push(escalation);
+        }
+        if (escalations.length >= limit) break;
+      }
+
+      return escalations.sort((a: any, b: any) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+    } catch (err) {
+      console.error('Failed to get escalations:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Get system health indicators
+   */
+  async getHealthIndicators(): Promise<{
+    errorRate: number;
+    criticalErrors: number;
+    escalations: number;
+    avgResponseTime: number;
+    status: 'healthy' | 'degraded' | 'critical';
+  }> {
+    try {
+      const stats = await this.getErrorStats();
+      const escalationCounter = await this.env.CACHE.get('escalations:counter', 'json') as any || { count: 0 };
+      
+      // Calculate error rate (errors per hour in last 24 hours)
+      const last24Hours = Object.values(stats.errorsByHour).reduce((sum, count) => sum + count, 0);
+      const errorRate = last24Hours / 24;
+
+      // Count critical errors in last hour
+      const currentHour = new Date().toISOString().slice(0, 13);
+      const criticalErrors = stats.recentErrors.filter(e => 
+        e.timestamp.slice(0, 13) === currentHour && 
+        (e.statusCode >= 500 || e.code === 'DATABASE_ERROR' || e.code === 'AUTH_SYSTEM_ERROR')
+      ).length;
+
+      // Determine system status
+      let status: 'healthy' | 'degraded' | 'critical' = 'healthy';
+      if (escalationCounter.count > 0 || criticalErrors > 5) {
+        status = 'critical';
+      } else if (errorRate > 10 || criticalErrors > 0) {
+        status = 'degraded';
+      }
+
+      return {
+        errorRate,
+        criticalErrors,
+        escalations: escalationCounter.count || 0,
+        avgResponseTime: 0, // Will be populated by performance metrics
+        status,
+      };
+    } catch (err) {
+      console.error('Failed to get health indicators:', err);
+      return {
+        errorRate: 0,
+        criticalErrors: 0,
+        escalations: 0,
+        avgResponseTime: 0,
+        status: 'healthy',
+      };
+    }
+  }
+
+  /**
    * Clear old errors
    */
   async clearOldErrors(daysToKeep: number = 7): Promise<number> {
@@ -369,28 +471,185 @@ export class ErrorTrackingService {
   }
 
   private async sendErrorAlert(error: ErrorRecord): Promise<void> {
-    // In production, this would send to a monitoring service
-    console.error('CRITICAL ERROR ALERT:', {
-      id: error.id,
+    // Enhanced alerting with multiple channels
+    const alert = {
+      errorId: error.id,
+      timestamp: error.timestamp,
       code: error.code,
       message: error.message,
       path: error.request.path,
-      timestamp: error.timestamp,
+      severity: this.getErrorSeverity(error),
+      frequency: await this.getErrorFrequency(error.code, error.request.path),
+      context: {
+        userAgent: error.request.userAgent,
+        country: error.request.country,
+        colo: error.request.colo,
+        statusCode: error.statusCode,
+      },
+    };
+
+    // Console alert with enhanced formatting
+    console.error('🚨 CRITICAL ERROR ALERT 🚨', {
+      ...alert,
+      stack: error.stack?.split('\n').slice(0, 5).join('\n'), // First 5 lines of stack
     });
 
     // Store alert in KV for dashboard
     const alertKey = `alert:${error.id}`;
     await this.env.CACHE.put(
       alertKey,
-      JSON.stringify({
-        errorId: error.id,
-        timestamp: error.timestamp,
+      JSON.stringify(alert),
+      { expirationTtl: 86400 * 3 } // 3 days for alerts
+    );
+
+    // Update alert summary for dashboard
+    await this.updateAlertSummary(alert);
+
+    // Check for error patterns and escalate if needed
+    await this.checkErrorPatterns(error);
+  }
+
+  /**
+   * Get error severity based on multiple factors
+   */
+  private getErrorSeverity(error: ErrorRecord): 'low' | 'medium' | 'high' | 'critical' {
+    if (error.statusCode >= 500) return 'critical';
+    if (error.code === 'DATABASE_ERROR' || error.code === 'AUTH_SYSTEM_ERROR') return 'critical';
+    if (error.request.path.includes('/api/v1/auth') && error.statusCode >= 400) return 'high';
+    if (error.statusCode === 429) return 'medium'; // Rate limiting
+    if (error.statusCode >= 400) return 'low';
+    return 'low';
+  }
+
+  /**
+   * Get error frequency for pattern detection
+   */
+  private async getErrorFrequency(code: string, path: string): Promise<{
+    codeFrequency: number;
+    pathFrequency: number;
+    recentOccurrences: number;
+  }> {
+    try {
+      const stats = await this.getErrorStats();
+      const recentHour = new Date().toISOString().slice(0, 13);
+      
+      return {
+        codeFrequency: stats.errorsByCode[code] || 0,
+        pathFrequency: stats.errorsByPath[path] || 0,
+        recentOccurrences: stats.errorsByHour[recentHour] || 0,
+      };
+    } catch {
+      return { codeFrequency: 0, pathFrequency: 0, recentOccurrences: 0 };
+    }
+  }
+
+  /**
+   * Update alert summary for dashboard
+   */
+  private async updateAlertSummary(alert: any): Promise<void> {
+    try {
+      const summaryKey = 'alerts:summary';
+      const summary = await this.env.CACHE.get(summaryKey, 'json') as any || {
+        totalAlerts: 0,
+        alertsBySeverity: {},
+        alertsByCode: {},
+        recentAlerts: [],
+        lastUpdated: new Date().toISOString(),
+      };
+
+      summary.totalAlerts++;
+      summary.alertsBySeverity[alert.severity] = (summary.alertsBySeverity[alert.severity] || 0) + 1;
+      summary.alertsByCode[alert.code] = (summary.alertsByCode[alert.code] || 0) + 1;
+      summary.recentAlerts.unshift(alert);
+      summary.recentAlerts = summary.recentAlerts.slice(0, 50); // Keep last 50
+      summary.lastUpdated = new Date().toISOString();
+
+      await this.env.CACHE.put(
+        summaryKey,
+        JSON.stringify(summary),
+        { expirationTtl: 86400 * 7 } // 7 days
+      );
+    } catch (error) {
+      console.error('Failed to update alert summary:', error);
+    }
+  }
+
+  /**
+   * Check for error patterns and escalate
+   */
+  private async checkErrorPatterns(error: ErrorRecord): Promise<void> {
+    try {
+      const frequency = await this.getErrorFrequency(error.code, error.request.path);
+      
+      // Pattern detection thresholds
+      const CRITICAL_THRESHOLDS = {
+        sameCodeInHour: 10,
+        samePathInHour: 15,
+        totalErrorsInHour: 50,
+      };
+
+      let shouldEscalate = false;
+      const escalationReasons: string[] = [];
+
+      if (frequency.codeFrequency >= CRITICAL_THRESHOLDS.sameCodeInHour) {
+        shouldEscalate = true;
+        escalationReasons.push(`Error code ${error.code} occurred ${frequency.codeFrequency} times`);
+      }
+
+      if (frequency.pathFrequency >= CRITICAL_THRESHOLDS.samePathInHour) {
+        shouldEscalate = true;
+        escalationReasons.push(`Path ${error.request.path} had ${frequency.pathFrequency} errors`);
+      }
+
+      if (frequency.recentOccurrences >= CRITICAL_THRESHOLDS.totalErrorsInHour) {
+        shouldEscalate = true;
+        escalationReasons.push(`${frequency.recentOccurrences} total errors in the last hour`);
+      }
+
+      if (shouldEscalate) {
+        await this.escalateAlert(error, escalationReasons);
+      }
+    } catch (error) {
+      console.error('Failed to check error patterns:', error);
+    }
+  }
+
+  /**
+   * Escalate critical error patterns
+   */
+  private async escalateAlert(error: ErrorRecord, reasons: string[]): Promise<void> {
+    const escalation = {
+      errorId: error.id,
+      timestamp: new Date().toISOString(),
+      originalError: {
         code: error.code,
-        message: error.message,
         path: error.request.path,
-        severity: 'critical',
-      }),
-      { expirationTtl: 86400 } // 24 hours
+        message: error.message,
+      },
+      escalationReasons: reasons,
+      severity: 'ESCALATED',
+    };
+
+    console.error('🔥 ESCALATED ALERT - IMMEDIATE ATTENTION REQUIRED 🔥', escalation);
+
+    // Store escalation
+    const escalationKey = `escalation:${error.id}`;
+    await this.env.CACHE.put(
+      escalationKey,
+      JSON.stringify(escalation),
+      { expirationTtl: 86400 * 7 } // 7 days
+    );
+
+    // Update escalation counter
+    const counterKey = 'escalations:counter';
+    const counter = await this.env.CACHE.get(counterKey, 'json') as any || { count: 0, lastEscalation: null };
+    counter.count++;
+    counter.lastEscalation = escalation.timestamp;
+    
+    await this.env.CACHE.put(
+      counterKey,
+      JSON.stringify(counter),
+      { expirationTtl: 86400 * 30 } // 30 days
     );
   }
 }

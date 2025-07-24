@@ -1,5 +1,6 @@
 import { Context, Next } from 'hono';
 import { Env } from '../index';
+import { LoggingService } from '../services/logging';
 
 interface RequestMetrics {
   timestamp: number;
@@ -24,6 +25,16 @@ export const performanceTrackingMiddleware = async (c: Context<{ Bindings: Env }
   } finally {
     const duration = Date.now() - startTime;
     const status = c.res.status;
+
+    // Enhanced logging with performance context
+    if (c.env?.CACHE) {
+      try {
+        const loggingService = new LoggingService(c.env);
+        await loggingService.logRequest(c, duration, status);
+      } catch (loggingError) {
+        console.error('Failed to log request:', loggingError);
+      }
+    }
 
     // Create metrics object
     const metrics: RequestMetrics = {
@@ -63,19 +74,60 @@ export const performanceTrackingMiddleware = async (c: Context<{ Bindings: Env }
         existingMetrics.totalRequests++;
         existingMetrics.totalDuration += duration;
         existingMetrics.statusCodes[status] = (existingMetrics.statusCodes[status] || 0) + 1;
-        existingMetrics.endpoints[c.req.path] = (existingMetrics.endpoints[c.req.path] || 0) + 1;
+        
+        // Initialize response times array if not exists
+        if (!existingMetrics.responseTimes) {
+          existingMetrics.responseTimes = [];
+        }
+        existingMetrics.responseTimes.push(duration);
+        
+        // Keep only last 1000 response times for percentile calculations
+        if (existingMetrics.responseTimes.length > 1000) {
+          existingMetrics.responseTimes = existingMetrics.responseTimes.slice(-1000);
+        }
+
+        // Enhanced endpoint tracking
+        if (!existingMetrics.endpoints[c.req.path]) {
+          existingMetrics.endpoints[c.req.path] = {
+            count: 0,
+            totalDuration: 0,
+            errors: 0,
+            slowRequests: [],
+          };
+        }
+        
+        const endpointMetrics = existingMetrics.endpoints[c.req.path];
+        endpointMetrics.count++;
+        endpointMetrics.totalDuration += duration;
+        endpointMetrics.avgDuration = endpointMetrics.totalDuration / endpointMetrics.count;
+        
+        if (status >= 400) {
+          endpointMetrics.errors++;
+        }
 
         // Track slow requests (> 500ms)
         if (duration > 500) {
-          existingMetrics.slowRequests.push({
+          const slowRequest = {
             path: c.req.path,
             method: c.req.method,
             duration,
             timestamp: new Date(startTime).toISOString(),
-          });
-          // Keep only the last 100 slow requests
+            statusCode: status,
+            userAgent: c.req.header('User-Agent'),
+            country: c.req.header('CF-IPCountry'),
+          };
+          
+          existingMetrics.slowRequests.push(slowRequest);
+          endpointMetrics.slowRequests.push(slowRequest);
+          
+          // Keep only the last 100 slow requests globally
           if (existingMetrics.slowRequests.length > 100) {
             existingMetrics.slowRequests = existingMetrics.slowRequests.slice(-100);
+          }
+          
+          // Keep only the last 20 slow requests per endpoint
+          if (endpointMetrics.slowRequests.length > 20) {
+            endpointMetrics.slowRequests = endpointMetrics.slowRequests.slice(-20);
           }
         }
 

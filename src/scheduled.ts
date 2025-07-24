@@ -22,7 +22,10 @@ export default async function scheduled(
   logger.info(`Scheduled tasks started at ${new Date(event.scheduledTime).toISOString()}`);
   
   try {
-    // Run data retention purging first (it's usually faster)
+    // Run monitoring and health checks first
+    await runMonitoringTasks(env);
+    
+    // Run data retention purging
     await runDataRetentionPurge(env);
     
     // Then process async jobs
@@ -136,6 +139,78 @@ async function runDataRetentionPurge(env: Env): Promise<void> {
     });
   } catch (error) {
     logger.error('Data retention purge failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Run monitoring and health check tasks
+ */
+async function runMonitoringTasks(env: Env): Promise<void> {
+  const startTime = Date.now();
+  logger.info('Starting monitoring tasks');
+  
+  try {
+    // Check performance thresholds
+    const { PerformanceMetricsService } = await import('./services/performanceMetrics');
+    const performanceService = new PerformanceMetricsService(env);
+    await performanceService.checkPerformanceThresholds();
+    
+    // Clean up old errors and logs
+    const { ErrorTrackingService } = await import('./services/errorTracking');
+    const errorTracking = new ErrorTrackingService(env);
+    const clearedErrors = await errorTracking.clearOldErrors(7); // Keep 7 days
+    
+    const { LoggingService } = await import('./services/logging');
+    const logging = new LoggingService(env);
+    const clearedLogs = await logging.cleanupOldLogs(7); // Keep 7 days
+    
+    // Perform health checks on critical services
+    const { ErrorRecoveryService } = await import('./services/errorRecovery');
+    const recoveryService = new ErrorRecoveryService(env);
+    
+    // Health check database
+    const dbHealthy = await recoveryService.performHealthCheck('database', async () => {
+      await env.DB.prepare('SELECT 1').first();
+      return true;
+    });
+    
+    // Health check cache
+    const cacheHealthy = await recoveryService.performHealthCheck('cache', async () => {
+      const testKey = `health_${Date.now()}`;
+      await env.CACHE.put(testKey, 'ok', { expirationTtl: 60 });
+      const result = await env.CACHE.get(testKey);
+      await env.CACHE.delete(testKey);
+      return result === 'ok';
+    });
+    
+    const duration = Date.now() - startTime;
+    logger.info('Monitoring tasks completed', {
+      duration,
+      clearedErrors,
+      clearedLogs,
+      healthChecks: {
+        database: dbHealthy,
+        cache: cacheHealthy,
+      },
+    });
+    
+    // Store monitoring metrics
+    await env.CACHE.put('monitoring:last_run', JSON.stringify({
+      timestamp: new Date().toISOString(),
+      duration,
+      clearedErrors,
+      clearedLogs,
+      healthChecks: {
+        database: dbHealthy,
+        cache: cacheHealthy,
+      },
+    }), {
+      expirationTtl: 86400 * 7, // Keep for 7 days
+    });
+    
+  } catch (error) {
+    logger.error('Monitoring tasks failed:', error);
     throw error;
   }
 }
