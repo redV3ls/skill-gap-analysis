@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { Database } from '../config/database';
 import { userProfiles, userSkills, skills } from './schema';
 import { logger } from '../utils/logger';
+import { QueryOptimizationService } from '../services/queryOptimization';
+import { CacheInvalidationService } from '../services/cacheInvalidation';
+import { Env } from '../index';
 
 // Zod schemas for validation
 export const skillLevelEnum = z.enum(['beginner', 'intermediate', 'advanced', 'expert']);
@@ -38,7 +41,15 @@ export type UserSkillInput = z.infer<typeof userSkillSchema>;
 
 // User Profile CRUD Operations
 export class UserProfileService {
-  constructor(private db: Database) {}
+  private queryOptimizer?: QueryOptimizationService;
+  private cacheInvalidation?: CacheInvalidationService;
+
+  constructor(private db: Database, private env?: Env) {
+    if (env) {
+      this.queryOptimizer = new QueryOptimizationService(db, env);
+      this.cacheInvalidation = new CacheInvalidationService(env);
+    }
+  }
 
   async createUserProfile(input: CreateUserProfileInput) {
     try {
@@ -96,6 +107,12 @@ export class UserProfileService {
 
   async getUserProfile(userId: string) {
     try {
+      // Use optimized query if available
+      if (this.queryOptimizer) {
+        return await this.queryOptimizer.getUserProfileOptimized(userId);
+      }
+
+      // Fallback to original implementation
       const profile = await this.db
         .select()
         .from(userProfiles)
@@ -186,6 +203,11 @@ export class UserProfileService {
 
         return updatedProfile;
       });
+
+      // Invalidate related caches
+      if (this.cacheInvalidation) {
+        await this.cacheInvalidation.triggerDataChange('user_profile', 'update', userId);
+      }
 
       logger.info(`User profile updated successfully: ${userId}`);
       return result;

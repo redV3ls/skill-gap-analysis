@@ -553,6 +553,239 @@ monitoring.post('/performance/check-thresholds', async (c: AuthenticatedContext)
 });
 
 /**
+ * GET /monitoring/cache/optimization - Get cache optimization metrics
+ */
+monitoring.get('/cache/optimization', async (c: AuthenticatedContext) => {
+  try {
+    const { IntelligentCachingService } = await import('../services/intelligentCaching');
+    const cacheService = new IntelligentCachingService(c.env);
+    
+    const metrics = await cacheService.getMetrics();
+    
+    return c.json({
+      cache: {
+        metrics,
+        recommendations: [
+          metrics.hitRate < 0.7 ? 'Consider increasing cache TTL for frequently accessed data' : null,
+          metrics.evictions > 100 ? 'Consider optimizing cache size or implementing better eviction policies' : null,
+          metrics.averageResponseTime > 100 ? 'Cache response time is high, consider optimization' : null,
+        ].filter(Boolean),
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting cache optimization metrics:', error);
+    return c.json({
+      error: 'Failed to retrieve cache optimization metrics'
+    }, 500);
+  }
+});
+
+/**
+ * POST /monitoring/cache/optimize - Trigger cache optimization
+ */
+monitoring.post('/cache/optimize', async (c: AuthenticatedContext) => {
+  try {
+    const { maxSizeBytes } = await c.req.json().catch(() => ({}));
+    
+    const { IntelligentCachingService } = await import('../services/intelligentCaching');
+    const cacheService = new IntelligentCachingService(c.env);
+    
+    await cacheService.optimizeCache(maxSizeBytes);
+    
+    return c.json({
+      message: 'Cache optimization completed',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error optimizing cache:', error);
+    return c.json({
+      error: 'Failed to optimize cache'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/cache/invalidation/rules - Get cache invalidation rules
+ */
+monitoring.get('/cache/invalidation/rules', async (c: AuthenticatedContext) => {
+  try {
+    const { CacheInvalidationService } = await import('../services/cacheInvalidation');
+    const invalidationService = new CacheInvalidationService(c.env);
+    
+    const rules = invalidationService.getRules();
+    const stats = await invalidationService.getInvalidationStats();
+    
+    return c.json({
+      rules,
+      stats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting invalidation rules:', error);
+    return c.json({
+      error: 'Failed to retrieve invalidation rules'
+    }, 500);
+  }
+});
+
+/**
+ * POST /monitoring/cache/invalidation/trigger - Manually trigger cache invalidation
+ */
+monitoring.post('/cache/invalidation/trigger', async (c: AuthenticatedContext) => {
+  try {
+    const { ruleId, entityId, metadata } = await c.req.json();
+    
+    if (!ruleId) {
+      return c.json({
+        error: 'Rule ID is required'
+      }, 400);
+    }
+    
+    const { CacheInvalidationService } = await import('../services/cacheInvalidation');
+    const invalidationService = new CacheInvalidationService(c.env);
+    
+    const event = await invalidationService.triggerManual(ruleId, entityId, metadata);
+    
+    return c.json({
+      event,
+      message: 'Cache invalidation triggered',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error triggering cache invalidation:', error);
+    return c.json({
+      error: 'Failed to trigger cache invalidation'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/cache/invalidation/events - Get invalidation events history
+ */
+monitoring.get('/cache/invalidation/events', async (c: AuthenticatedContext) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '100');
+    const ruleId = c.req.query('ruleId');
+    
+    const { CacheInvalidationService } = await import('../services/cacheInvalidation');
+    const invalidationService = new CacheInvalidationService(c.env);
+    
+    const events = await invalidationService.getInvalidationEvents(limit, ruleId);
+    
+    return c.json({
+      events,
+      count: events.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting invalidation events:', error);
+    return c.json({
+      error: 'Failed to retrieve invalidation events'
+    }, 500);
+  }
+});
+
+/**
+ * GET /monitoring/queries/optimization - Get query optimization metrics
+ */
+monitoring.get('/queries/optimization', async (c: AuthenticatedContext) => {
+  try {
+    const { QueryOptimizationService } = await import('../services/queryOptimization');
+    const db = c.env.DB;
+    const queryOptimizer = new QueryOptimizationService(db, c.env);
+    
+    const metrics = queryOptimizer.getQueryMetrics();
+    
+    // Calculate summary statistics
+    const allMetrics = Object.values(metrics).flat();
+    const totalQueries = allMetrics.length;
+    const cacheHits = allMetrics.filter(m => m.cacheHit).length;
+    const avgExecutionTime = totalQueries > 0 ? 
+      allMetrics.reduce((sum, m) => sum + m.executionTime, 0) / totalQueries : 0;
+    
+    const optimizationCounts = allMetrics.reduce((acc, m) => {
+      m.optimizationApplied.forEach(opt => {
+        acc[opt] = (acc[opt] || 0) + 1;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return c.json({
+      queries: {
+        total: totalQueries,
+        cacheHitRate: totalQueries > 0 ? cacheHits / totalQueries : 0,
+        averageExecutionTime: avgExecutionTime,
+        optimizationCounts,
+        recentQueries: allMetrics.slice(-20), // Last 20 queries
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error getting query optimization metrics:', error);
+    return c.json({
+      error: 'Failed to retrieve query optimization metrics'
+    }, 500);
+  }
+});
+
+/**
+ * POST /monitoring/queries/clear-metrics - Clear query metrics
+ */
+monitoring.post('/queries/clear-metrics', async (c: AuthenticatedContext) => {
+  try {
+    const { QueryOptimizationService } = await import('../services/queryOptimization');
+    const db = c.env.DB;
+    const queryOptimizer = new QueryOptimizationService(db, c.env);
+    
+    queryOptimizer.clearQueryMetrics();
+    
+    return c.json({
+      message: 'Query metrics cleared',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error clearing query metrics:', error);
+    return c.json({
+      error: 'Failed to clear query metrics'
+    }, 500);
+  }
+});
+
+/**
+ * POST /monitoring/cache/warmup - Warm up cache with frequently accessed data
+ */
+monitoring.post('/cache/warmup', async (c: AuthenticatedContext) => {
+  try {
+    const { userIds, skillCategories, industries } = await c.req.json().catch(() => ({}));
+    
+    const { IntelligentCachingService } = await import('../services/intelligentCaching');
+    const cacheService = new IntelligentCachingService(c.env);
+    
+    await cacheService.warmupCache({
+      userIds,
+      skillCategories,
+      industries,
+    });
+    
+    return c.json({
+      message: 'Cache warmup completed',
+      warmedUp: {
+        users: userIds?.length || 0,
+        skillCategories: skillCategories?.length || 0,
+        industries: industries?.length || 0,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error warming up cache:', error);
+    return c.json({
+      error: 'Failed to warm up cache'
+    }, 500);
+  }
+});
+
+/**
  * GET /monitoring/health/dependencies - Check health of all dependencies
  */
 monitoring.get('/health/dependencies', async (c: AuthenticatedContext) => {
