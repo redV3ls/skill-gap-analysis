@@ -56,6 +56,8 @@ export const teamMemberSchema = z.object({
   skills: userSkillsSchema,
   role: z.string().max(100, 'Role too long').optional(),
   department: z.string().max(100, 'Department too long').optional(),
+  salary: z.number().min(0, 'Salary must be non-negative').optional(),
+  hourly_rate: z.number().min(0, 'Hourly rate must be non-negative').optional(),
 });
 
 export const projectRequirementsSchema = z.object({
@@ -64,6 +66,7 @@ export const projectRequirementsSchema = z.object({
   required_skills: z.array(z.string()).min(1, 'At least one required skill needed'),
   timeline: z.string().max(50, 'Timeline too long').optional(),
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
+  budget: z.number().min(0, 'Budget must be non-negative').optional(),
 });
 
 export const teamAnalysisRequestSchema = z.object({
