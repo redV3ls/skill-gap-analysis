@@ -20,16 +20,35 @@ export class DocumentParser {
   }
 
   /**
-   * Parse document from base64 string
+   * Parse document from base64 string (optimized)
    */
   async parseFromBase64(base64Data: string, fileName: string): Promise<ParsedDocument> {
+    const startTime = performance.now();
+    
     try {
-      // Remove data URL prefix if present
-      const base64Content = base64Data.replace(/^data:[^;]+;base64,/, '');
+      // Validate input
+      if (!base64Data || !fileName) {
+        throw new Error('Base64 data and filename are required');
+      }
+      
+      // Remove data URL prefix if present (optimized)
+      const base64Content = base64Data.startsWith('data:') 
+        ? base64Data.substring(base64Data.indexOf(',') + 1)
+        : base64Data;
+      
       const buffer = this.base64ToArrayBuffer(base64Content);
       const fileType = this.getFileTypeFromName(fileName);
       
+      // Validate file before processing
+      const validation = this.validateDocument(fileName, buffer.byteLength);
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+      
       const result = await this.skillExtractor.parseDocument(buffer, fileType);
+      
+      const totalProcessingTime = performance.now() - startTime;
+      logger.debug(`Document parsing completed in ${totalProcessingTime.toFixed(2)}ms`);
       
       return {
         content: result.text,
@@ -42,7 +61,12 @@ export class DocumentParser {
         }
       };
     } catch (error) {
-      logger.error('Document parsing failed:', error);
+      const processingTime = performance.now() - startTime;
+      logger.error('Document parsing failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        fileName,
+        processingTime: processingTime.toFixed(2)
+      });
       throw new Error(`Failed to parse document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -90,30 +114,68 @@ export class DocumentParser {
   }
 
   /**
-   * Extract skills from plain text
+   * Extract skills from plain text (optimized)
    */
   async extractSkillsFromText(text: string): Promise<any[]> {
+    const startTime = performance.now();
+    
     try {
-      const skills = await this.skillExtractor.extractSkills(text);
+      // Validate input
+      if (!text || text.trim().length === 0) {
+        return [];
+      }
+      
+      // Limit text size for performance
+      const maxTextLength = 50000; // 50KB limit
+      const processedText = text.length > maxTextLength 
+        ? text.substring(0, maxTextLength) + '...'
+        : text;
+      
+      if (text.length > maxTextLength) {
+        logger.warn(`Text truncated from ${text.length} to ${maxTextLength} characters for performance`);
+      }
+      
+      const skills = await this.skillExtractor.extractSkills(processedText);
+      
+      const processingTime = performance.now() - startTime;
+      logger.debug(`Skill extraction completed in ${processingTime.toFixed(2)}ms, found ${skills.length} skills`);
+      
       return skills;
     } catch (error) {
-      logger.error('Skill extraction failed:', error);
+      const processingTime = performance.now() - startTime;
+      logger.error('Skill extraction failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        textLength: text.length,
+        processingTime: processingTime.toFixed(2)
+      });
       throw new Error(`Failed to extract skills: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Convert base64 to ArrayBuffer
+   * Convert base64 to ArrayBuffer (optimized)
    */
   private base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    try {
+      // Validate base64 string
+      if (!base64 || base64.length === 0) {
+        throw new Error('Empty base64 string');
+      }
+      
+      const binaryString = atob(base64);
+      const length = binaryString.length;
+      const bytes = new Uint8Array(length);
+      
+      // Optimized loop for better performance
+      for (let i = 0; i < length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      return bytes.buffer;
+    } catch (error) {
+      logger.error('Base64 conversion failed:', error);
+      throw new Error(`Invalid base64 data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    return bytes.buffer;
   }
 
   /**

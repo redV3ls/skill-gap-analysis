@@ -60,78 +60,105 @@ export class SkillExtractionService {
    * Parse document based on file type
    */
   async parseDocument(buffer: ArrayBuffer, fileType: string): Promise<DocumentParsingResult> {
-    const startTime = Date.now();
+    const startTime = performance.now();
     let text: string;
 
     try {
-      switch (fileType.toLowerCase()) {
+      const normalizedFileType = fileType.toLowerCase();
+      
+      switch (normalizedFileType) {
         case 'pdf':
-          text = await this.parsePDF(buffer);
+          try {
+            text = await this.parsePDF(buffer);
+          } catch (error) {
+            logger.warn(`PDF parsing not available in Workers environment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error('PDF parsing requires external service. Please convert to text format or use a document parsing service.');
+          }
           break;
         case 'docx':
         case 'doc':
-          text = await this.parseDOCX(buffer);
+          try {
+            text = await this.parseDOCX(buffer);
+          } catch (error) {
+            logger.warn(`DOCX parsing not available in Workers environment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error('DOCX parsing requires external service. Please convert to text format or use a document parsing service.');
+          }
           break;
         case 'txt':
-          text = new TextDecoder().decode(buffer);
+          text = new TextDecoder('utf-8').decode(buffer);
           break;
         default:
-          throw new Error(`Unsupported file type: ${fileType}`);
+          const supportedTypes = ['pdf', 'docx', 'doc', 'txt'];
+          throw new Error(`Unsupported file type: ${fileType}. Supported types: ${supportedTypes.join(', ')}`);
       }
 
       const skills = await this.extractSkills(text);
-      const processingTime = Math.max(1, Date.now() - startTime); // Ensure minimum 1ms
+      const processingTime = Math.round((performance.now() - startTime) * 100) / 100; // Round to 2 decimal places
 
       return {
         text,
         skills,
         metadata: {
-          wordCount: text.split(/\s+/).length,
+          wordCount: this.countWords(text),
           processingTime,
-          documentType: fileType
+          documentType: normalizedFileType
         }
       };
     } catch (error) {
-      logger.error('Document parsing failed:', error);
+      const processingTime = Math.round((performance.now() - startTime) * 100) / 100;
+      logger.error('Document parsing failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        fileType,
+        processingTime,
+        bufferSize: buffer.byteLength
+      });
       throw error;
     }
   }
 
   /**
-   * Extract skills from text using NLP and pattern matching
+   * Extract skills from text using optimized pattern matching
    */
   async extractSkills(text: string): Promise<ExtractedSkill[]> {
+    const startTime = performance.now();
     const skills: ExtractedSkill[] = [];
-    const normalizedText = text.toLowerCase();
     
-    // Extract technical skills using keyword matching
-    for (const [category, keywords] of this.skillKeywords.entries()) {
-      for (const keyword of keywords) {
-        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    // Pre-compile regex patterns for better performance
+    const compiledPatterns = this.getCompiledPatterns();
+    
+    // Single pass through text for all skill categories
+    for (const [category, patterns] of compiledPatterns.entries()) {
+      for (const { keyword, regex } of patterns) {
         let match;
+        
+        // Reset regex lastIndex for global patterns
+        regex.lastIndex = 0;
         
         while ((match = regex.exec(text)) !== null) {
           const matchedText = match[0];
           const matchIndex = match.index;
           
-          // Extract context around this specific match
-          const context = this.extractContextAtIndex(text, matchIndex, matchedText.length);
+          // Extract context around this specific match (optimized)
+          const context = this.extractContextAtIndex(text, matchIndex, matchedText.length, 40);
           const experienceLevel = this.inferExperienceLevel(context, matchedText);
           const yearsExperience = this.extractYearsExperience(context, matchedText);
           
           skills.push({
-            skill: matchedText,
+            skill: keyword, // Use original keyword for consistency
             category,
             confidence: this.calculateConfidence(context, matchedText),
             context,
             experienceLevel,
             yearsExperience
           });
+          
+          // Prevent infinite loops with global regex
+          if (!regex.global) break;
         }
       }
     }
 
-    // Extract skills from technical sections
+    // Extract skills from technical sections (optimized)
     const techSections = this.extractTechnicalSections(text);
     
     // Process technical sections for additional skills
@@ -141,45 +168,44 @@ export class SkillExtractionService {
     }
 
     // Remove duplicates and sort by confidence
-    return this.deduplicateSkills(skills);
+    const deduplicatedSkills = this.deduplicateSkills(skills);
+    
+    const processingTime = performance.now() - startTime;
+    logger.debug(`Skill extraction completed in ${processingTime.toFixed(2)}ms, found ${deduplicatedSkills.length} skills`);
+    
+    return deduplicatedSkills;
   }
 
   /**
-   * Infer experience level from context
+   * Infer experience level from context (optimized)
    */
   private inferExperienceLevel(context: string, skill: string): 'beginner' | 'intermediate' | 'advanced' | 'expert' | undefined {
     const lowerContext = context.toLowerCase();
     const lowerSkill = skill.toLowerCase();
     
-    // Look for explicit level mentions in the immediate context (smaller window)
+    // Look for explicit level mentions in the immediate context
     const skillIndex = lowerContext.indexOf(lowerSkill);
-    if (skillIndex !== -1) {
-      // Use a smaller context window to avoid picking up other skills' levels
-      const nearContext = lowerContext.substring(Math.max(0, skillIndex - 30), skillIndex + lowerSkill.length + 30);
-      
-      // Beginner level indicators (check first as they're more specific)
-      if (nearContext.includes('beginner') || nearContext.includes('basic') ||
-          nearContext.includes('familiar with') || nearContext.includes('exposure to') ||
-          nearContext.includes('beginner level')) {
-        return 'beginner';
-      }
-      
-      // Expert level indicators
-      if (nearContext.includes('expert') || nearContext.includes('lead') || 
-          nearContext.includes('senior') || nearContext.includes('architect')) {
-        return 'expert';
-      }
-      
-      // Advanced level indicators
-      if (nearContext.includes('advanced') || nearContext.includes('proficient') ||
-          nearContext.includes('extensive experience') || nearContext.includes('advanced knowledge')) {
-        return 'advanced';
-      }
-      
-      // Intermediate level indicators
-      if (nearContext.includes('intermediate') || nearContext.includes('experienced') ||
-          nearContext.includes('solid understanding') || nearContext.includes('intermediate sql')) {
-        return 'intermediate';
+    if (skillIndex === -1) return undefined;
+    
+    // Use a focused context window around the skill mention
+    const windowSize = 30;
+    const nearContext = lowerContext.substring(
+      Math.max(0, skillIndex - windowSize), 
+      skillIndex + lowerSkill.length + windowSize
+    );
+    
+    // Pre-compiled patterns for better performance
+    const levelPatterns = {
+      beginner: /\b(?:beginner|basic|familiar\s+with|exposure\s+to|beginner\s+level|entry\s+level)\b/,
+      expert: /\b(?:expert|lead|senior|architect|master|guru)\b/,
+      advanced: /\b(?:advanced|proficient|extensive\s+experience|advanced\s+knowledge|deep\s+understanding)\b/,
+      intermediate: /\b(?:intermediate|experienced|solid\s+understanding|competent|working\s+knowledge)\b/
+    };
+    
+    // Check patterns in order of specificity
+    for (const [level, pattern] of Object.entries(levelPatterns)) {
+      if (pattern.test(nearContext)) {
+        return level as 'beginner' | 'intermediate' | 'advanced' | 'expert';
       }
     }
     
@@ -187,72 +213,72 @@ export class SkillExtractionService {
   }
 
   /**
-   * Extract years of experience from context for a specific skill
+   * Extract years of experience from context for a specific skill (optimized)
    */
   private extractYearsExperience(context: string, skill?: string): number | undefined {
     const lowerContext = context.toLowerCase();
     const lowerSkill = skill?.toLowerCase();
     
-    // If we have a skill, look for patterns that are close to the skill mention
+    // Pre-compiled patterns for better performance
+    const specificPatterns = {
+      before: [
+        /(\d+)\+?\s*years?\s*(?:of\s*)?(?:experience|exp)\s*with\s*$/i,
+        /(\d+)\+?\s*yrs?\s*(?:of\s*)?(?:experience|exp)\s*with\s*$/i,
+      ],
+      after: [
+        /^\s*for\s*(\d+)\+?\s*years?/i,
+        /^\s*\(\s*(\d+)\+?\s*years?\)/i,
+      ]
+    };
+    
+    // If we have a skill, look for patterns close to the skill mention
     if (lowerSkill) {
       const skillIndex = lowerContext.indexOf(lowerSkill);
       if (skillIndex !== -1) {
-        // Look in a smaller window around the skill
-        const beforeSkill = lowerContext.substring(Math.max(0, skillIndex - 30), skillIndex);
-        const afterSkill = lowerContext.substring(skillIndex + lowerSkill.length, Math.min(lowerContext.length, skillIndex + lowerSkill.length + 30));
-        
-        // Patterns that come before the skill
-        const beforePatterns = [
-          /(\d+)\+?\s*years?\s*(?:of\s*)?(?:experience|exp)\s*with\s*$/i,
-          /(\d+)\+?\s*yrs?\s*(?:of\s*)?(?:experience|exp)\s*with\s*$/i,
-        ];
-        
-        // Patterns that come after the skill
-        const afterPatterns = [
-          /^\s*for\s*(\d+)\+?\s*years?/i,
-          /^\s*\(\s*(\d+)\+?\s*years?\)/i,
-        ];
+        const windowSize = 30;
+        const beforeSkill = lowerContext.substring(Math.max(0, skillIndex - windowSize), skillIndex);
+        const afterSkill = lowerContext.substring(
+          skillIndex + lowerSkill.length, 
+          Math.min(lowerContext.length, skillIndex + lowerSkill.length + windowSize)
+        );
         
         // Check before patterns
-        for (const pattern of beforePatterns) {
+        for (const pattern of specificPatterns.before) {
           const match = beforeSkill.match(pattern);
           if (match) {
-            return parseInt(match[1]);
+            const years = parseInt(match[1]);
+            return isNaN(years) ? undefined : Math.min(years, 50); // Cap at 50 years for sanity
           }
         }
         
         // Check after patterns
-        for (const pattern of afterPatterns) {
+        for (const pattern of specificPatterns.after) {
           const match = afterSkill.match(pattern);
           if (match) {
-            return parseInt(match[1]);
+            const years = parseInt(match[1]);
+            return isNaN(years) ? undefined : Math.min(years, 50);
           }
         }
       }
     }
     
-    // Fallback to general patterns
-    const yearPatterns = [
-      // "worked with X for N years" - most specific for this context
+    // Fallback to general patterns (ordered by specificity)
+    const generalPatterns = [
       /worked\s*with\s*[\w\s]*?for\s*(\d+)\+?\s*years?/i,
-      // "N years of experience with X"
       /(\d+)\+?\s*years?\s*(?:of\s*)?(?:experience|exp)\s*with/i,
-      // "N years experience in X"
       /(\d+)\+?\s*years?\s*(?:experience|exp)\s*in/i,
-      // "N yrs experience in X"
       /(\d+)\+?\s*yrs?\s*(?:experience|exp)\s*in/i,
-      // General patterns (less specific)
       /(\d+)\+?\s*years?\s*(?:of\s*)?(?:experience|exp)/i,
       /(\d+)\+?\s*yrs?\s*(?:of\s*)?(?:experience|exp)/i,
       /(\d+)\+?\s*years?\s*working\s*with/i,
       /(\d+)\+?\s*years?\s*(?:in|with)/i
     ];
     
-    // Look for the most specific pattern first
-    for (const pattern of yearPatterns) {
+    for (const pattern of generalPatterns) {
       const match = context.match(pattern);
       if (match) {
-        return parseInt(match[1]);
+        const years = parseInt(match[1]);
+        return isNaN(years) ? undefined : Math.min(years, 50);
       }
     }
     
@@ -346,19 +372,25 @@ export class SkillExtractionService {
   }
 
   /**
-   * Extract technical sections from resume text
+   * Extract technical sections from resume text (optimized)
    */
   private extractTechnicalSections(text: string): string[] {
     const sections: string[] = [];
-    const sectionHeaders = [
-      'technical skills', 'skills', 'technologies', 'programming languages',
-      'tools and technologies', 'technical expertise', 'core competencies'
+    
+    // Pre-compiled regex patterns for better performance
+    const sectionPatterns = [
+      /technical\s+skills[:\s]*([^]*?)(?=\n\n|\n[A-Z][^\n]*:|$)/i,
+      /(?:^|\n)\s*skills[:\s]*([^]*?)(?=\n\n|\n[A-Z][^\n]*:|$)/i,
+      /technologies[:\s]*([^]*?)(?=\n\n|\n[A-Z][^\n]*:|$)/i,
+      /programming\s+languages[:\s]*([^]*?)(?=\n\n|\n[A-Z][^\n]*:|$)/i,
+      /tools\s+and\s+technologies[:\s]*([^]*?)(?=\n\n|\n[A-Z][^\n]*:|$)/i,
+      /technical\s+expertise[:\s]*([^]*?)(?=\n\n|\n[A-Z][^\n]*:|$)/i,
+      /core\s+competencies[:\s]*([^]*?)(?=\n\n|\n[A-Z][^\n]*:|$)/i
     ];
     
-    for (const header of sectionHeaders) {
-      const regex = new RegExp(`${header}[:\\s]*([\\s\\S]*?)(?=\\n\\n|\\n[A-Z][^\\n]*:|$)`, 'i');
-      const match = text.match(regex);
-      if (match && match[1]) {
+    for (const pattern of sectionPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1] && match[1].trim()) {
         sections.push(match[1].trim());
       }
     }
@@ -367,25 +399,42 @@ export class SkillExtractionService {
   }
 
   /**
-   * Extract skills from a specific section
+   * Extract skills from a specific section (optimized)
    */
   private async extractSkillsFromSection(section: string): Promise<ExtractedSkill[]> {
     const skills: ExtractedSkill[] = [];
     
-    // Split by common delimiters
-    const items = section.split(/[,;•\n\r]/).map(item => item.trim()).filter(item => item.length > 0);
+    if (!section || section.trim().length === 0) {
+      return skills;
+    }
     
-    for (const item of items) {
-      // Check if item matches known skills
-      const matchedSkill = this.findMatchingSkill(item);
-      if (matchedSkill) {
-        skills.push({
-          skill: matchedSkill.skill,
-          category: matchedSkill.category,
-          confidence: 0.8, // Higher confidence for skills in dedicated sections
-          context: item,
-          experienceLevel: this.inferExperienceLevel(item, matchedSkill.skill)
-        });
+    // Split by common delimiters (optimized regex)
+    const items = section
+      .split(/[,;•\n\r]+/)
+      .map(item => item.trim())
+      .filter(item => item.length > 2); // Filter out very short items
+    
+    // Process items in batches for better performance
+    const batchSize = 10;
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      
+      for (const item of batch) {
+        // Check if item matches known skills
+        const matchedSkill = this.findMatchingSkill(item);
+        if (matchedSkill) {
+          const experienceLevel = this.inferExperienceLevel(item, matchedSkill.skill);
+          const yearsExperience = this.extractYearsExperience(item, matchedSkill.skill);
+          
+          skills.push({
+            skill: matchedSkill.skill,
+            category: matchedSkill.category,
+            confidence: 0.8, // Higher confidence for skills in dedicated sections
+            context: item,
+            experienceLevel,
+            yearsExperience
+          });
+        }
       }
     }
     
@@ -393,15 +442,37 @@ export class SkillExtractionService {
   }
 
   /**
-   * Find matching skill from keywords
+   * Find matching skill from keywords (optimized)
    */
   private findMatchingSkill(text: string): { skill: string; category: string } | null {
     const normalizedText = text.toLowerCase().trim();
     
+    // Skip very short or very long text
+    if (normalizedText.length < 2 || normalizedText.length > 50) {
+      return null;
+    }
+    
+    // Use more efficient matching
     for (const [category, keywords] of this.skillKeywords.entries()) {
       for (const keyword of keywords) {
-        if (normalizedText.includes(keyword.toLowerCase()) || 
-            keyword.toLowerCase().includes(normalizedText)) {
+        const lowerKeyword = keyword.toLowerCase();
+        
+        // Exact match first (most reliable)
+        if (normalizedText === lowerKeyword) {
+          return { skill: keyword, category };
+        }
+        
+        // Word boundary match
+        const wordBoundaryRegex = new RegExp(`\\b${lowerKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+        if (wordBoundaryRegex.test(normalizedText)) {
+          return { skill: keyword, category };
+        }
+        
+        // Partial match (less reliable, only for longer keywords)
+        if (lowerKeyword.length > 4 && (
+          normalizedText.includes(lowerKeyword) || 
+          lowerKeyword.includes(normalizedText)
+        )) {
           return { skill: keyword, category };
         }
       }
@@ -411,21 +482,43 @@ export class SkillExtractionService {
   }
 
   /**
-   * Remove duplicate skills and sort by confidence
+   * Remove duplicate skills and sort by confidence (optimized)
    */
   private deduplicateSkills(skills: ExtractedSkill[]): ExtractedSkill[] {
+    if (skills.length === 0) return skills;
+    
     const skillMap = new Map<string, ExtractedSkill>();
     
+    // Process skills and keep the best match for each skill
     for (const skill of skills) {
-      const key = skill.skill.toLowerCase();
+      const key = skill.skill.toLowerCase().trim();
+      
+      // Skip invalid skills
+      if (!key || key.length < 2) continue;
+      
       const existing = skillMap.get(key);
       
-      if (!existing || skill.confidence > existing.confidence) {
+      if (!existing) {
         skillMap.set(key, skill);
+      } else {
+        // Keep the skill with higher confidence, or better experience data
+        const shouldReplace = skill.confidence > existing.confidence ||
+          (skill.confidence === existing.confidence && skill.yearsExperience && !existing.yearsExperience) ||
+          (skill.confidence === existing.confidence && skill.experienceLevel && !existing.experienceLevel);
+        
+        if (shouldReplace) {
+          skillMap.set(key, skill);
+        }
       }
     }
     
-    return Array.from(skillMap.values()).sort((a, b) => b.confidence - a.confidence);
+    // Sort by confidence (descending) and then by skill name for consistency
+    return Array.from(skillMap.values()).sort((a, b) => {
+      if (b.confidence !== a.confidence) {
+        return b.confidence - a.confidence;
+      }
+      return a.skill.localeCompare(b.skill);
+    });
   }
 
   /**
@@ -474,5 +567,56 @@ export class SkillExtractionService {
       /(intermediate|mid.level)/i,
       /(advanced|senior|expert|lead)/i
     ];
+  }
+
+  /**
+   * Get pre-compiled regex patterns for better performance
+   */
+  private getCompiledPatterns(): Map<string, Array<{ keyword: string; regex: RegExp }>> {
+    const compiledPatterns = new Map<string, Array<{ keyword: string; regex: RegExp }>>();
+    
+    for (const [category, keywords] of this.skillKeywords.entries()) {
+      const patterns: Array<{ keyword: string; regex: RegExp }> = [];
+      
+      for (const keyword of keywords) {
+        // Escape special regex characters
+        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Create word boundary regex for exact matches
+        const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'gi');
+        patterns.push({ keyword, regex });
+      }
+      
+      compiledPatterns.set(category, patterns);
+    }
+    
+    return compiledPatterns;
+  }
+
+  /**
+   * Optimized word counting
+   */
+  private countWords(text: string): number {
+    if (!text || text.trim().length === 0) return 0;
+    
+    // More efficient word counting using match
+    const matches = text.trim().match(/\S+/g);
+    return matches ? matches.length : 0;
+  }
+
+  /**
+   * Optimized file type validation
+   */
+  private validateFileType(fileType: string): { valid: boolean; error?: string } {
+    const supportedTypes = new Set(['pdf', 'docx', 'doc', 'txt']);
+    const normalizedType = fileType.toLowerCase();
+    
+    if (!supportedTypes.has(normalizedType)) {
+      return {
+        valid: false,
+        error: `Unsupported file type: ${fileType}. Supported types: ${Array.from(supportedTypes).join(', ')}`
+      };
+    }
+    
+    return { valid: true };
   }
 }

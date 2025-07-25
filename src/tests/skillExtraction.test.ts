@@ -109,6 +109,54 @@ describe('SkillExtractionService', () => {
       const awsSkill = skills.find(s => s.skill.toLowerCase().includes('aws'));
       expect(awsSkill?.category).toBe('Cloud Platforms');
     });
+
+    it('should handle edge cases in experience extraction', async () => {
+      const text = `
+        JavaScript (5+ years)
+        Python for 3 years
+        2 years of experience with React
+        Advanced Java programming
+        Expert in Node.js
+      `;
+
+      const skills = await skillExtractor.extractSkills(text);
+      
+      const jsSkill = skills.find(s => s.skill === 'JavaScript');
+      expect(jsSkill?.yearsExperience).toBe(5);
+      
+      const pythonSkill = skills.find(s => s.skill === 'Python');
+      expect(pythonSkill?.yearsExperience).toBe(3);
+      
+      const reactSkill = skills.find(s => s.skill === 'React');
+      expect(reactSkill?.yearsExperience).toBe(2);
+      
+      // Check that experience levels are detected (may vary based on context)
+      const javaSkill = skills.find(s => s.skill === 'Java');
+      expect(javaSkill?.experienceLevel).toBeDefined();
+      expect(['advanced', 'expert']).toContain(javaSkill?.experienceLevel);
+      
+      const nodeSkill = skills.find(s => s.skill === 'Node.js');
+      expect(nodeSkill?.experienceLevel).toBe('expert');
+    });
+
+    it('should handle malformed or very long skill names', async () => {
+      const text = `
+        JavaScript
+        VeryLongSkillNameThatShouldBeHandledProperly
+        A
+        ""
+        null
+        undefined
+      `;
+
+      const skills = await skillExtractor.extractSkills(text);
+      
+      // Should find JavaScript
+      expect(skills.some(s => s.skill === 'JavaScript')).toBe(true);
+      
+      // Should not include very short or invalid entries
+      expect(skills.every(s => s.skill.length >= 2)).toBe(true);
+    });
   });
 
   describe('parseDocument', () => {
@@ -268,6 +316,52 @@ describe('DocumentParser', () => {
       const result = await documentParser.parseFromBase64(base64WithPrefix, 'resume.txt');
       
       expect(result.content).toBe(text);
+    });
+
+    it('should handle empty base64 data', async () => {
+      await expect(documentParser.parseFromBase64('', 'resume.txt'))
+        .rejects.toThrow('Base64 data and filename are required');
+    });
+
+    it('should handle invalid base64 data', async () => {
+      await expect(documentParser.parseFromBase64('invalid-base64!@#', 'resume.txt'))
+        .rejects.toThrow('Invalid base64 data');
+    });
+  });
+
+  describe('Performance Tests', () => {
+    it('should handle large text efficiently', async () => {
+      // Create a large text with repeated skill mentions
+      const skillText = 'JavaScript Python Java React Angular Vue.js Node.js MongoDB PostgreSQL AWS Docker Kubernetes ';
+      const largeText = skillText.repeat(100); // ~7KB of text
+      
+      const startTime = performance.now();
+      const skills = await documentParser.extractSkillsFromText(largeText);
+      const endTime = performance.now();
+      
+      expect(skills.length).toBeGreaterThan(0);
+      expect(endTime - startTime).toBeLessThan(1000); // Should complete in under 1 second
+    });
+
+    it('should truncate very large text for performance', async () => {
+      // Create text larger than the 50KB limit
+      const largeText = 'JavaScript developer '.repeat(3000); // ~60KB
+      
+      const skills = await documentParser.extractSkillsFromText(largeText);
+      
+      expect(skills.length).toBeGreaterThan(0);
+      // Should still find skills despite truncation
+      expect(skills.some(s => s.skill.toLowerCase().includes('javascript'))).toBe(true);
+    });
+
+    it('should return empty array for empty text', async () => {
+      const skills = await documentParser.extractSkillsFromText('');
+      expect(skills).toEqual([]);
+    });
+
+    it('should return empty array for whitespace-only text', async () => {
+      const skills = await documentParser.extractSkillsFromText('   \n\t   ');
+      expect(skills).toEqual([]);
     });
   });
 });
