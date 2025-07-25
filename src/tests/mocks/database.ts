@@ -30,15 +30,15 @@ export const mockDrizzleDatabase = (mockResponses: any = {}) => {
 
   // Set up default responses
   if (mockResponses.select) {
-    mockQueryBuilder.limit.mockResolvedValue(mockResponses.select);
+    (mockQueryBuilder.limit as jest.Mock).mockResolvedValue(mockResponses.select);
   }
   
   if (mockResponses.insert) {
-    mockQueryBuilder.returning.mockResolvedValue(mockResponses.insert);
+    (mockQueryBuilder.returning as jest.Mock).mockResolvedValue(mockResponses.insert);
   }
   
   if (mockResponses.update) {
-    mockQueryBuilder.returning.mockResolvedValue(mockResponses.update);
+    (mockQueryBuilder.returning as jest.Mock).mockResolvedValue(mockResponses.update);
   }
 
   if (mockResponses.transaction) {

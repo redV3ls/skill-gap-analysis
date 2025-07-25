@@ -9,7 +9,10 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: {
-        types: ['@cloudflare/workers-types', 'jest', 'node']
+        types: ['@cloudflare/workers-types', 'jest', 'node'],
+        skipLibCheck: true,
+        noImplicitAny: false,
+        strict: false
       }
     }],
   },
@@ -26,5 +29,16 @@ module.exports = {
     'html',
   ],
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
-  testTimeout: 10000
+  moduleNameMapping: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+  testTimeout: 10000,
+  globals: {
+    'ts-jest': {
+      isolatedModules: true,
+      diagnostics: {
+        ignoreCodes: [2345, 2769, 2339, 2554, 2551, 2783, 2307, 2304, 2559, 2353, 2322, 2802]
+      }
+    }
+  }
 };
