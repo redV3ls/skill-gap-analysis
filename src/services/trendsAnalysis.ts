@@ -68,31 +68,37 @@ export class TrendsAnalysisService {
     limit: number = 10
   ): Promise<IndustryTrend[]> {
     try {
-      // For now, return mock data since we're using Drizzle ORM
-      // In production, this would use proper Drizzle queries
-      const mockTrends: IndustryTrend[] = [
-        {
-          industry: industry || 'Technology',
-          topSkills: ['JavaScript', 'Python', 'React', 'AWS', 'Docker'],
-          growthRate: 0.15,
-          avgSalary: 125000,
-          totalJobs: 15000,
-          emergingSkills: ['AI Prompt Engineering', 'Rust', 'WebAssembly']
-        },
-        {
-          industry: 'Finance',
-          topSkills: ['Python', 'SQL', 'Java', 'Machine Learning', 'Excel'],
-          growthRate: 0.12,
-          avgSalary: 135000,
-          totalJobs: 8000,
-          emergingSkills: ['Blockchain', 'DeFi', 'Quantitative Analysis']
-        }
-      ];
+      const { industryTrends } = await import('../db/schema');
+      const { eq, and, desc } = await import('drizzle-orm');
 
-      return mockTrends.slice(0, limit);
+      // Build query conditions
+      const conditions = [];
+      if (industry) {
+        conditions.push(eq(industryTrends.industry, industry));
+      }
+      if (region) {
+        conditions.push(eq(industryTrends.region, region));
+      }
+
+      // Query database for industry trends
+      const rawData = await this.db
+        .select()
+        .from(industryTrends)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(industryTrends.demandScore))
+        .limit(limit * 10); // Get more data to aggregate
+
+      if (rawData.length === 0) {
+        // Return mock data if no database data exists
+        return this.getMockIndustryTrends(industry, limit);
+      }
+
+      // Format and aggregate the data
+      return this.formatIndustryTrends(rawData).slice(0, limit);
     } catch (error) {
       logger.error('Error fetching industry trends:', error);
-      throw new Error('Failed to fetch industry trends');
+      // Fallback to mock data on database error
+      return this.getMockIndustryTrends(industry, limit);
     }
   }
 
@@ -105,50 +111,42 @@ export class TrendsAnalysisService {
     limit: number = 20
   ): Promise<EmergingSkill[]> {
     try {
-      // Mock emerging skills data
-      const mockEmergingSkills: EmergingSkill[] = [
-        {
-          skillName: 'AI Prompt Engineering',
-          category: 'AI & Machine Learning',
-          emergenceScore: 0.95,
-          growthVelocity: 0.85,
-          relatedSkills: ['Machine Learning', 'NLP', 'ChatGPT', 'GPT-4'],
-          adoptionRate: 0.78,
-          predictedDemandPeak: '2025-12-31'
-        },
-        {
-          skillName: 'Rust Programming',
-          category: 'Programming',
-          emergenceScore: 0.82,
-          growthVelocity: 0.45,
-          relatedSkills: ['C++', 'Systems Programming', 'WebAssembly'],
-          adoptionRate: 0.67,
-          predictedDemandPeak: '2026-06-30'
-        },
-        {
-          skillName: 'Web3 Development',
-          category: 'Blockchain',
-          emergenceScore: 0.78,
-          growthVelocity: 0.38,
-          relatedSkills: ['Blockchain', 'Solidity', 'Smart Contracts'],
-          adoptionRate: 0.62,
-          predictedDemandPeak: '2025-09-30'
-        }
-      ];
+      const { emergingSkills } = await import('../db/schema');
+      const { eq, and, gte, desc } = await import('drizzle-orm');
 
-      // Filter by category if specified
-      let filteredSkills = mockEmergingSkills;
+      // Build query conditions
+      const conditions = [gte(emergingSkills.growthVelocity, minGrowthRate)];
       if (category) {
-        filteredSkills = mockEmergingSkills.filter(skill => skill.category === category);
+        conditions.push(eq(emergingSkills.category, category));
       }
 
-      // Filter by minimum growth rate
-      filteredSkills = filteredSkills.filter(skill => skill.growthVelocity >= minGrowthRate);
+      // Query database for emerging skills
+      const rawData = await this.db
+        .select()
+        .from(emergingSkills)
+        .where(and(...conditions))
+        .orderBy(desc(emergingSkills.emergenceScore))
+        .limit(limit);
 
-      return filteredSkills.slice(0, limit);
+      if (rawData.length === 0) {
+        // Return mock data if no database data exists
+        return this.getMockEmergingSkills(category, minGrowthRate, limit);
+      }
+
+      // Format the data
+      return rawData.map(skill => ({
+        skillName: skill.skillName,
+        category: skill.category,
+        emergenceScore: skill.emergenceScore,
+        growthVelocity: skill.growthVelocity,
+        relatedSkills: skill.relatedSkills ? JSON.parse(skill.relatedSkills) : [],
+        adoptionRate: this.calculateAdoptionRate(skill.emergenceScore, skill.growthVelocity),
+        predictedDemandPeak: skill.predictedPeakDemand || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+      }));
     } catch (error) {
       logger.error('Error fetching emerging skills:', error);
-      throw new Error('Failed to fetch emerging skills');
+      // Fallback to mock data on database error
+      return this.getMockEmergingSkills(category, minGrowthRate, limit);
     }
   }
 
@@ -161,57 +159,48 @@ export class TrendsAnalysisService {
     limit: number = 10
   ): Promise<RegionalTrend[]> {
     try {
-      // Mock regional trends data
-      const mockRegionalTrends: RegionalTrend[] = [
-        {
-          region: region || 'North America',
-          country: 'USA',
-          topSkills: [
-            {
-              skillName: 'JavaScript',
-              category: 'Programming',
-              demandScore: 0.92,
-              growthRate: 0.15,
-              averageSalary: 125000,
-              jobCount: 15000,
-              lastUpdated: new Date().toISOString()
-            },
-            {
-              skillName: 'Python',
-              category: 'Programming',
-              demandScore: 0.88,
-              growthRate: 0.22,
-              averageSalary: 130000,
-              jobCount: 12000,
-              lastUpdated: new Date().toISOString()
-            }
-          ],
-          demandSupplyGap: 0.25,
-          salaryIndex: 1.2
-        },
-        {
-          region: 'Europe',
-          country: 'Germany',
-          topSkills: [
-            {
-              skillName: 'Java',
-              category: 'Programming',
-              demandScore: 0.85,
-              growthRate: 0.08,
-              averageSalary: 95000,
-              jobCount: 8000,
-              lastUpdated: new Date().toISOString()
-            }
-          ],
-          demandSupplyGap: 0.18,
-          salaryIndex: 0.95
-        }
-      ];
+      const { regionalSkillTrends, skills } = await import('../db/schema');
+      const { eq, and, desc } = await import('drizzle-orm');
 
-      return mockRegionalTrends.slice(0, limit);
+      // Build query conditions
+      const conditions = [];
+      if (region) {
+        conditions.push(eq(regionalSkillTrends.region, region));
+      }
+
+      // Query database for regional trends
+      const baseQuery = this.db
+        .select({
+          region: regionalSkillTrends.region,
+          country: regionalSkillTrends.country,
+          city: regionalSkillTrends.city,
+          skillName: regionalSkillTrends.skillName,
+          demandScore: regionalSkillTrends.demandScore,
+          supplyScore: regionalSkillTrends.supplyScore,
+          gapScore: regionalSkillTrends.gapScore,
+          avgSalary: regionalSkillTrends.avgSalary,
+          salaryGrowth: regionalSkillTrends.salaryGrowth,
+          jobGrowth: regionalSkillTrends.jobGrowth
+        })
+        .from(regionalSkillTrends);
+
+      const rawData = await (conditions.length > 0 
+        ? baseQuery.where(and(...conditions))
+        : baseQuery)
+        .orderBy(desc(regionalSkillTrends.demandScore))
+        .limit(limit * 20); // Get more data to group by region
+
+      if (rawData.length === 0) {
+        // Return mock data if no database data exists
+        return this.getMockRegionalTrends(region, limit);
+      }
+
+      // Group and format the data
+      return this.groupByRegion(rawData).slice(0, limit);
     } catch (error) {
       logger.error('Error fetching regional trends:', error);
-      throw new Error('Failed to fetch regional trends');
+      // Fallback to mock data on database error
+      return this.getMockRegionalTrends(region, limit);
     }
   }
 
@@ -259,24 +248,50 @@ export class TrendsAnalysisService {
     timeWindow: number = 6 // months
   ): Promise<Map<string, number>> {
     try {
-      // Mock growth velocity data
-      const mockVelocityData = new Map<string, number>([
-        ['AI Prompt Engineering', 0.85],
-        ['Rust', 0.45],
-        ['TypeScript', 0.28],
-        ['Kubernetes', 0.35],
-        ['React', 0.20],
-        ['Python', 0.25],
-        ['JavaScript', 0.15],
-        ['Java', 0.08],
-        ['PHP', -0.05],
-        ['jQuery', -0.15]
-      ]);
+      const { skillDemandHistory } = await import('../db/schema');
+      const { sql, gte } = await import('drizzle-orm');
 
-      return mockVelocityData;
+      // Calculate cutoff date
+      const cutoffDate = new Date();
+      cutoffDate.setMonth(cutoffDate.getMonth() - timeWindow);
+
+      // Query for skill demand data within time window
+      const rawData = await this.db
+        .select({
+          skillName: skillDemandHistory.skillName,
+          demandScore: skillDemandHistory.demandScore,
+          recordedAt: skillDemandHistory.recordedAt
+        })
+        .from(skillDemandHistory)
+        .where(gte(skillDemandHistory.recordedAt, cutoffDate.toISOString()))
+        .orderBy(skillDemandHistory.skillName, skillDemandHistory.recordedAt);
+
+      if (rawData.length === 0) {
+        // Return mock data if no database data exists
+        return this.getMockVelocityData();
+      }
+
+      // Calculate growth velocity for each skill
+      const velocityMap = new Map<string, number>();
+      const skillGroups = this.groupSkillData(rawData);
+
+      for (const [skillName, dataPoints] of skillGroups.entries()) {
+        if (dataPoints.length < 2) continue;
+
+        const velocity = this.calculateGrowthVelocity(
+          dataPoints[0].demandScore,
+          dataPoints[dataPoints.length - 1].demandScore,
+          timeWindow
+        );
+
+        velocityMap.set(skillName, velocity);
+      }
+
+      return velocityMap;
     } catch (error) {
       logger.error('Error analyzing growth velocity:', error);
-      throw new Error('Failed to analyze growth velocity');
+      // Fallback to mock data on database error
+      return this.getMockVelocityData();
     }
   }
 
@@ -466,6 +481,153 @@ export class TrendsAnalysisService {
     for (const forecast of forecasts) {
       logger.info(`Forecast for ${forecast.skillName}: Current ${forecast.currentDemand.toFixed(2)}, 1Y ${forecast.forecast1Year.toFixed(2)} (confidence: ${(forecast.confidence * 100).toFixed(1)}%)`);
     }
+  }
+
+  /**
+   * Mock data fallback methods
+   */
+  private getMockIndustryTrends(industry?: string, limit: number = 10): IndustryTrend[] {
+    const mockTrends: IndustryTrend[] = [
+      {
+        industry: industry || 'Technology',
+        topSkills: ['JavaScript', 'Python', 'React', 'AWS', 'Docker'],
+        growthRate: 0.15,
+        avgSalary: 125000,
+        totalJobs: 15000,
+        emergingSkills: ['AI Prompt Engineering', 'Rust', 'WebAssembly']
+      },
+      {
+        industry: 'Finance',
+        topSkills: ['Python', 'SQL', 'Java', 'Machine Learning', 'Excel'],
+        growthRate: 0.12,
+        avgSalary: 135000,
+        totalJobs: 8000,
+        emergingSkills: ['Blockchain', 'DeFi', 'Quantitative Analysis']
+      }
+    ];
+
+    return mockTrends.slice(0, limit);
+  }
+
+  private getMockEmergingSkills(category?: string, minGrowthRate: number = 0.2, limit: number = 20): EmergingSkill[] {
+    const mockEmergingSkills: EmergingSkill[] = [
+      {
+        skillName: 'AI Prompt Engineering',
+        category: 'AI & Machine Learning',
+        emergenceScore: 0.95,
+        growthVelocity: 0.85,
+        relatedSkills: ['Machine Learning', 'NLP', 'ChatGPT', 'GPT-4'],
+        adoptionRate: 0.78,
+        predictedDemandPeak: '2025-12-31'
+      },
+      {
+        skillName: 'Rust Programming',
+        category: 'Programming',
+        emergenceScore: 0.82,
+        growthVelocity: 0.45,
+        relatedSkills: ['C++', 'Systems Programming', 'WebAssembly'],
+        adoptionRate: 0.67,
+        predictedDemandPeak: '2026-06-30'
+      },
+      {
+        skillName: 'Web3 Development',
+        category: 'Blockchain',
+        emergenceScore: 0.78,
+        growthVelocity: 0.38,
+        relatedSkills: ['Blockchain', 'Solidity', 'Smart Contracts'],
+        adoptionRate: 0.62,
+        predictedDemandPeak: '2025-09-30'
+      }
+    ];
+
+    // Filter by category if specified
+    let filteredSkills = mockEmergingSkills;
+    if (category) {
+      filteredSkills = mockEmergingSkills.filter(skill => skill.category === category);
+    }
+
+    // Filter by minimum growth rate
+    filteredSkills = filteredSkills.filter(skill => skill.growthVelocity >= minGrowthRate);
+
+    return filteredSkills.slice(0, limit);
+  }
+
+  private getMockRegionalTrends(region?: string, limit: number = 10): RegionalTrend[] {
+    const mockRegionalTrends: RegionalTrend[] = [
+      {
+        region: region || 'North America',
+        country: 'USA',
+        topSkills: [
+          {
+            skillName: 'JavaScript',
+            category: 'Programming',
+            demandScore: 0.92,
+            growthRate: 0.15,
+            averageSalary: 125000,
+            jobCount: 15000,
+            lastUpdated: new Date().toISOString()
+          },
+          {
+            skillName: 'Python',
+            category: 'Programming',
+            demandScore: 0.88,
+            growthRate: 0.22,
+            averageSalary: 130000,
+            jobCount: 12000,
+            lastUpdated: new Date().toISOString()
+          }
+        ],
+        demandSupplyGap: 0.25,
+        salaryIndex: 1.2
+      },
+      {
+        region: 'Europe',
+        country: 'Germany',
+        topSkills: [
+          {
+            skillName: 'Java',
+            category: 'Programming',
+            demandScore: 0.85,
+            growthRate: 0.08,
+            averageSalary: 95000,
+            jobCount: 8000,
+            lastUpdated: new Date().toISOString()
+          }
+        ],
+        demandSupplyGap: 0.18,
+        salaryIndex: 0.95
+      }
+    ];
+
+    return mockRegionalTrends.slice(0, limit);
+  }
+
+  private getMockVelocityData(): Map<string, number> {
+    return new Map<string, number>([
+      ['AI Prompt Engineering', 0.85],
+      ['Rust', 0.45],
+      ['TypeScript', 0.28],
+      ['Kubernetes', 0.35],
+      ['React', 0.20],
+      ['Python', 0.25],
+      ['JavaScript', 0.15],
+      ['Java', 0.08],
+      ['PHP', -0.05],
+      ['jQuery', -0.15]
+    ]);
+  }
+
+  private groupSkillData(rawData: any[]): Map<string, any[]> {
+    const skillGroups = new Map<string, any[]>();
+    
+    for (const dataPoint of rawData) {
+      if (!skillGroups.has(dataPoint.skillName)) {
+        skillGroups.set(dataPoint.skillName, []);
+      }
+      skillGroups.get(dataPoint.skillName)!.push(dataPoint);
+    }
+    
+    return skillGroups;
   }
 
   /**

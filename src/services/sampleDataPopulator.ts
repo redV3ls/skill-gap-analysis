@@ -62,7 +62,8 @@ export class SampleDataPopulator {
       
       logger.info('Cleared existing sample data');
     } catch (error) {
-      logger.warn('Error clearing sample data (may not exist yet):', error);
+      logger.warn('Error clearing sample data (tables may not exist yet):', error);
+      // Don't throw error - tables might not exist yet
     }
   }
 
@@ -304,10 +305,21 @@ export class SampleDataPopulator {
             break;
           default:
             logger.warn(`Unknown table for batch insert: ${tableName}`);
+            return;
         }
+        
+        logger.info(`Successfully inserted batch of ${batch.length} records into ${tableName}`);
       } catch (error) {
         logger.error(`Error inserting batch for ${tableName}:`, error);
+        
+        // If tables don't exist, skip this table
+        if (error instanceof Error && error.message.includes('no such table')) {
+          logger.warn(`Table ${tableName} does not exist, skipping...`);
+          continue;
+        }
+        
         // Try individual inserts as fallback
+        let successCount = 0;
         for (const record of batch) {
           try {
             switch (tableName) {
@@ -327,9 +339,14 @@ export class SampleDataPopulator {
                 await this.db.insert(schema.industryTrends).values(record);
                 break;
             }
+            successCount++;
           } catch (individualError) {
-            logger.warn(`Failed to insert individual record:`, individualError);
+            logger.warn(`Failed to insert individual record into ${tableName}:`, individualError);
           }
+        }
+        
+        if (successCount > 0) {
+          logger.info(`Successfully inserted ${successCount}/${batch.length} individual records into ${tableName}`);
         }
       }
     }

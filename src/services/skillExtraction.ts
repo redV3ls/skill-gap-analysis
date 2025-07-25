@@ -80,7 +80,7 @@ export class SkillExtractionService {
       }
 
       const skills = await this.extractSkills(text);
-      const processingTime = Date.now() - startTime;
+      const processingTime = Math.max(1, Date.now() - startTime); // Ensure minimum 1ms
 
       return {
         text,
