@@ -133,10 +133,12 @@ export class ErrorRecoveryService {
    */
   async getCircuitBreakerStatus(serviceKey: string): Promise<CircuitBreakerStatus> {
     try {
-      const cached = await this.env.CACHE.get(`circuit:${serviceKey}`, 'json') as CircuitBreakerStatus;
+      const cached = await this.env.CACHE.get(`circuit:${serviceKey}`, 'json');
       if (cached) {
-        this.circuitBreakers.set(serviceKey, cached);
-        return cached;
+        // Ensure we parse the cached data properly
+        const status = typeof cached === 'string' ? JSON.parse(cached) : cached;
+        this.circuitBreakers.set(serviceKey, status);
+        return status;
       }
     } catch (error) {
       console.error('Failed to get circuit breaker status from cache:', error);
@@ -187,23 +189,29 @@ export class ErrorRecoveryService {
    * Record successful operation
    */
   private async recordSuccess(serviceKey: string): Promise<void> {
-    const status = this.circuitBreakers.get(serviceKey);
-    if (!status) return;
-
-    status.successCount++;
-    status.totalRequests++;
-    
-    // Reset failure count on success
-    if (status.state === 'CLOSED') {
-      status.failureCount = 0;
+    let status = this.circuitBreakers.get(serviceKey);
+    if (!status) {
+      status = await this.getCircuitBreakerStatus(serviceKey);
     }
 
-    this.circuitBreakers.set(serviceKey, status);
+    // Create a new status object to avoid mutation issues
+    const updatedStatus: CircuitBreakerStatus = {
+      ...status,
+      successCount: status.successCount + 1,
+      totalRequests: status.totalRequests + 1,
+    };
+    
+    // Reset failure count on success
+    if (updatedStatus.state === 'CLOSED') {
+      updatedStatus.failureCount = 0;
+    }
+
+    this.circuitBreakers.set(serviceKey, updatedStatus);
     
     try {
       await this.env.CACHE.put(
         `circuit:${serviceKey}`,
-        JSON.stringify(status),
+        JSON.stringify(updatedStatus),
         { expirationTtl: 3600 }
       );
     } catch (error) {
@@ -215,29 +223,49 @@ export class ErrorRecoveryService {
    * Record failed operation
    */
   private async recordFailure(serviceKey: string, config: CircuitBreakerConfig): Promise<void> {
-    const status = this.circuitBreakers.get(serviceKey);
-    if (!status) return;
+    let status = this.circuitBreakers.get(serviceKey);
+    if (!status) {
+      // Get status from cache or create new one
+      status = await this.getCircuitBreakerStatus(serviceKey);
+    }
 
-    status.failureCount++;
-    status.totalRequests++;
-    status.lastFailureTime = Date.now();
+    // Create a new status object to avoid mutation issues
+    const updatedStatus: CircuitBreakerStatus = {
+      ...status,
+      failureCount: status.failureCount + 1,
+      totalRequests: status.totalRequests + 1,
+      lastFailureTime: Date.now(),
+    };
 
     // Check if we should open the circuit
-    if (status.failureCount >= config.failureThreshold) {
-      await this.updateCircuitBreakerState(serviceKey, 'OPEN');
+    if (updatedStatus.failureCount >= config.failureThreshold) {
+      updatedStatus.state = 'OPEN';
+      updatedStatus.nextAttemptTime = Date.now() + config.recoveryTimeout;
       
-      // Log circuit breaker activation
-      console.error(`🔴 Circuit breaker OPENED for ${serviceKey} after ${status.failureCount} failures`);
-      
-      // Store alert
-      await this.storeCircuitBreakerAlert(serviceKey, status);
-    } else {
-      this.circuitBreakers.set(serviceKey, status);
+      this.circuitBreakers.set(serviceKey, updatedStatus);
       
       try {
         await this.env.CACHE.put(
           `circuit:${serviceKey}`,
-          JSON.stringify(status),
+          JSON.stringify(updatedStatus),
+          { expirationTtl: 3600 }
+        );
+      } catch (error) {
+        console.error('Failed to update circuit breaker state in cache:', error);
+      }
+      
+      // Log circuit breaker activation
+      console.error(`🔴 Circuit breaker OPENED for ${serviceKey} after ${updatedStatus.failureCount} failures`);
+      
+      // Store alert
+      await this.storeCircuitBreakerAlert(serviceKey, updatedStatus);
+    } else {
+      this.circuitBreakers.set(serviceKey, updatedStatus);
+      
+      try {
+        await this.env.CACHE.put(
+          `circuit:${serviceKey}`,
+          JSON.stringify(updatedStatus),
           { expirationTtl: 3600 }
         );
       } catch (error) {
@@ -281,12 +309,24 @@ export class ErrorRecoveryService {
   private async updateCircuitBreakerSummary(alert: any): Promise<void> {
     try {
       const summaryKey = 'circuit_breakers:summary';
-      const summary = await this.env.CACHE.get(summaryKey, 'json') as any || {
-        totalBreakers: 0,
-        openBreakers: [],
-        recentAlerts: [],
-        lastUpdated: new Date().toISOString(),
-      };
+      const cachedSummary = await this.env.CACHE.get(summaryKey, 'json');
+      
+      let summary: any;
+      if (cachedSummary) {
+        summary = typeof cachedSummary === 'string' ? JSON.parse(cachedSummary) : cachedSummary;
+      } else {
+        summary = {
+          totalBreakers: 0,
+          openBreakers: [],
+          recentAlerts: [],
+          lastUpdated: new Date().toISOString(),
+        };
+      }
+
+      // Ensure openBreakers is an array
+      if (!Array.isArray(summary.openBreakers)) {
+        summary.openBreakers = [];
+      }
 
       // Add to open breakers if not already there
       if (!summary.openBreakers.includes(alert.serviceKey)) {
@@ -294,6 +334,12 @@ export class ErrorRecoveryService {
       }
 
       summary.totalBreakers = summary.openBreakers.length;
+      
+      // Ensure recentAlerts is an array
+      if (!Array.isArray(summary.recentAlerts)) {
+        summary.recentAlerts = [];
+      }
+      
       summary.recentAlerts.unshift(alert);
       summary.recentAlerts = summary.recentAlerts.slice(0, 20); // Keep last 20
       summary.lastUpdated = new Date().toISOString();

@@ -101,7 +101,8 @@ export class PerformanceMetricsService {
       const currentHour = new Date().toISOString().slice(0, 13);
       const metricsKey = `metrics:${currentHour}`;
       
-      const rawMetrics = await this.env.CACHE.get(metricsKey, 'json') as any || {
+      const cachedData = await this.env.CACHE.get(metricsKey, 'json');
+      const rawMetrics = (typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData) || {
         totalRequests: 0,
         totalDuration: 0,
         statusCodes: {},
@@ -111,7 +112,7 @@ export class PerformanceMetricsService {
       };
 
       // Calculate response time percentiles
-      const responseTimes = rawMetrics.responseTimes || [];
+      const responseTimes = Array.isArray(rawMetrics.responseTimes) ? rawMetrics.responseTimes : [];
       const sortedTimes = responseTimes.sort((a: number, b: number) => a - b);
       
       const responseTime = {
@@ -123,7 +124,7 @@ export class PerformanceMetricsService {
         max: sortedTimes[sortedTimes.length - 1] || 0,
       };
 
-      // Calculate throughput
+      // Calculate throughput (more realistic calculations)
       const throughput = {
         requestsPerSecond: rawMetrics.totalRequests / 3600, // Assuming hourly data
         requestsPerMinute: rawMetrics.totalRequests / 60,
@@ -131,23 +132,25 @@ export class PerformanceMetricsService {
       };
 
       // Calculate error rates
-      const total4xx = Object.entries(rawMetrics.statusCodes)
+      const statusCodes = rawMetrics.statusCodes || {};
+      const total4xx = Object.entries(statusCodes)
         .filter(([code]) => code.startsWith('4'))
         .reduce((sum, [, count]) => sum + (count as number), 0);
       
-      const total5xx = Object.entries(rawMetrics.statusCodes)
+      const total5xx = Object.entries(statusCodes)
         .filter(([code]) => code.startsWith('5'))
         .reduce((sum, [, count]) => sum + (count as number), 0);
 
+      const totalRequests = Math.max(rawMetrics.totalRequests, 1);
       const errorRates = {
-        total: (total4xx + total5xx) / Math.max(rawMetrics.totalRequests, 1),
-        rate4xx: total4xx / Math.max(rawMetrics.totalRequests, 1),
-        rate5xx: total5xx / Math.max(rawMetrics.totalRequests, 1),
-        rateByEndpoint: this.calculateEndpointErrorRates(rawMetrics.endpoints),
+        total: (total4xx + total5xx) / totalRequests,
+        rate4xx: total4xx / totalRequests,
+        rate5xx: total5xx / totalRequests,
+        rateByEndpoint: this.calculateEndpointErrorRates(rawMetrics.endpoints || {}),
       };
 
       // Process endpoint metrics
-      const endpoints = this.processEndpointMetrics(rawMetrics.endpoints);
+      const endpoints = this.processEndpointMetrics(rawMetrics.endpoints || {});
 
       return {
         timestamp: new Date().toISOString(),
@@ -331,8 +334,8 @@ export class PerformanceMetricsService {
       });
     }
 
-    // Check throughput threshold
-    if (current.throughput.requestsPerSecond < 1) { // Very low throughput
+    // Check throughput threshold - only alert if we have some requests but very low throughput
+    if (current.throughput.requestsPerHour > 0 && current.throughput.requestsPerSecond < 1) {
       await this.recordPerformanceAlert('LOW_THROUGHPUT', {
         requestsPerSecond: current.throughput.requestsPerSecond,
         requestsPerHour: current.throughput.requestsPerHour,

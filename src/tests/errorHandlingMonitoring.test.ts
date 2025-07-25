@@ -76,14 +76,30 @@ describe('Enhanced Error Handling and Monitoring', () => {
       (error as any).code = 'DATABASE_ERROR';
       (error as any).statusCode = 500;
 
-      // Mock high error frequency
+      // Mock high error frequency - first call returns existing stats, subsequent calls return updated stats
+      let callCount = 0;
       mockEnv.CACHE.get.mockImplementation((key: string) => {
         if (key === 'error:stats:current') {
-          return Promise.resolve(JSON.stringify({
-            errorsByCode: { 'DATABASE_ERROR': 15 },
-            errorsByPath: { '/api/test': 20 },
-            errorsByHour: { [new Date().toISOString().slice(0, 13)]: 60 },
-          }));
+          callCount++;
+          if (callCount === 1) {
+            // First call - return high frequency stats to trigger escalation
+            return Promise.resolve({
+              totalErrors: 100,
+              errorsByCode: { 'DATABASE_ERROR': 15 },
+              errorsByPath: { '/test': 20 },
+              errorsByHour: { [new Date().toISOString().slice(0, 13)]: 60 },
+              recentErrors: [],
+            });
+          } else {
+            // Subsequent calls - return updated stats
+            return Promise.resolve({
+              totalErrors: 101,
+              errorsByCode: { 'DATABASE_ERROR': 16 },
+              errorsByPath: { '/test': 21 },
+              errorsByHour: { [new Date().toISOString().slice(0, 13)]: 61 },
+              recentErrors: [],
+            });
+          }
         }
         return Promise.resolve(null);
       });
@@ -340,16 +356,24 @@ describe('Enhanced Error Handling and Monitoring', () => {
     it('should query logs with filters', async () => {
       const mockLogs = [
         {
+          id: '1',
           timestamp: new Date().toISOString(),
           level: 'error',
           message: 'Test error',
           metadata: { userId: 'user1', path: '/api/test' },
+          user: { id: 'user1' },
+          request: { path: '/api/test' },
+          environment: 'test',
         },
         {
+          id: '2',
           timestamp: new Date().toISOString(),
           level: 'info',
           message: 'Test info',
           metadata: { userId: 'user2', path: '/api/other' },
+          user: { id: 'user2' },
+          request: { path: '/api/other' },
+          environment: 'test',
         },
       ];
 
@@ -357,8 +381,8 @@ describe('Enhanced Error Handling and Monitoring', () => {
         keys: [{ name: 'log:1' }, { name: 'log:2' }],
       });
       mockEnv.CACHE.get.mockImplementation((key: string) => {
-        if (key === 'log:1') return Promise.resolve(JSON.stringify(mockLogs[0]));
-        if (key === 'log:2') return Promise.resolve(JSON.stringify(mockLogs[1]));
+        if (key === 'log:1') return Promise.resolve(mockLogs[0]);
+        if (key === 'log:2') return Promise.resolve(mockLogs[1]);
         return Promise.resolve(null);
       });
 
@@ -376,14 +400,20 @@ describe('Enhanced Error Handling and Monitoring', () => {
     it('should get log statistics', async () => {
       const mockLogs = [
         {
+          id: '1',
           timestamp: new Date().toISOString(),
           level: 'error',
-          metadata: { path: '/api/test', duration: 1000 },
+          message: 'Test error',
+          request: { path: '/api/test', duration: 1000 },
+          environment: 'test',
         },
         {
+          id: '2',
           timestamp: new Date().toISOString(),
           level: 'info',
-          metadata: { path: '/api/test', duration: 500 },
+          message: 'Test info',
+          request: { path: '/api/test', duration: 500 },
+          environment: 'test',
         },
       ];
 
@@ -391,8 +421,8 @@ describe('Enhanced Error Handling and Monitoring', () => {
         keys: [{ name: 'log:1' }, { name: 'log:2' }],
       });
       mockEnv.CACHE.get.mockImplementation((key: string) => {
-        if (key === 'log:1') return Promise.resolve(JSON.stringify(mockLogs[0]));
-        if (key === 'log:2') return Promise.resolve(JSON.stringify(mockLogs[1]));
+        if (key === 'log:1') return Promise.resolve(mockLogs[0]);
+        if (key === 'log:2') return Promise.resolve(mockLogs[1]);
         return Promise.resolve(null);
       });
 

@@ -158,14 +158,22 @@ export class ErrorTrackingService {
     const statsKey = 'error:stats:current';
     
     try {
-      const stats = await this.env.CACHE.get(statsKey, 'json') as ErrorStats || {
-        totalErrors: 0,
-        errorsByCode: {},
-        errorsByStatus: {},
-        errorsByPath: {},
-        errorsByHour: {},
-        recentErrors: [],
-      };
+      const cachedStats = await this.env.CACHE.get(statsKey, 'json');
+      let stats: ErrorStats;
+      
+      if (cachedStats) {
+        // Handle both string and object responses from KV
+        stats = typeof cachedStats === 'string' ? JSON.parse(cachedStats) : cachedStats;
+      } else {
+        stats = {
+          totalErrors: 0,
+          errorsByCode: {},
+          errorsByStatus: {},
+          errorsByPath: {},
+          errorsByHour: {},
+          recentErrors: [],
+        };
+      }
 
       // Update counters
       stats.totalErrors++;
@@ -206,8 +214,14 @@ export class ErrorTrackingService {
    */
   async getErrorStats(): Promise<ErrorStats> {
     try {
-      const stats = await this.env.CACHE.get('error:stats:current', 'json') as ErrorStats;
-      return stats || {
+      const cachedStats = await this.env.CACHE.get('error:stats:current', 'json');
+      if (cachedStats) {
+        // Handle both string and object responses from KV
+        const stats = typeof cachedStats === 'string' ? JSON.parse(cachedStats) : cachedStats;
+        return stats;
+      }
+      
+      return {
         totalErrors: 0,
         errorsByCode: {},
         errorsByStatus: {},
@@ -342,16 +356,21 @@ export class ErrorTrackingService {
   }> {
     try {
       const stats = await this.getErrorStats();
-      const escalationCounter = await this.env.CACHE.get('escalations:counter', 'json') as any || { count: 0 };
+      const escalationCounterData = await this.env.CACHE.get('escalations:counter', 'json');
+      const escalationCounter = escalationCounterData ? 
+        (typeof escalationCounterData === 'string' ? JSON.parse(escalationCounterData) : escalationCounterData) : 
+        { count: 0 };
       
       // Calculate error rate (errors per hour in last 24 hours)
-      const last24Hours = Object.values(stats.errorsByHour).reduce((sum, count) => sum + count, 0);
+      const errorsByHour = stats.errorsByHour || {};
+      const last24Hours = Object.values(errorsByHour).reduce((sum, count) => sum + count, 0);
       const errorRate = last24Hours / 24;
 
       // Count critical errors in last hour
       const currentHour = new Date().toISOString().slice(0, 13);
-      const criticalErrors = stats.recentErrors.filter(e => 
-        e.timestamp.slice(0, 13) === currentHour && 
+      const recentErrors = stats.recentErrors || [];
+      const criticalErrors = recentErrors.filter(e => 
+        e.timestamp && e.timestamp.slice(0, 13) === currentHour && 
         (e.statusCode >= 500 || e.code === 'DATABASE_ERROR' || e.code === 'AUTH_SYSTEM_ERROR')
       ).length;
 
@@ -538,7 +557,8 @@ export class ErrorTrackingService {
         pathFrequency: stats.errorsByPath[path] || 0,
         recentOccurrences: stats.errorsByHour[recentHour] || 0,
       };
-    } catch {
+    } catch (error) {
+      console.error('Failed to get error frequency:', error);
       return { codeFrequency: 0, pathFrequency: 0, recentOccurrences: 0 };
     }
   }
@@ -609,8 +629,8 @@ export class ErrorTrackingService {
       if (shouldEscalate) {
         await this.escalateAlert(error, escalationReasons);
       }
-    } catch (error) {
-      console.error('Failed to check error patterns:', error);
+    } catch (err) {
+      console.error('Failed to check error patterns:', err);
     }
   }
 
