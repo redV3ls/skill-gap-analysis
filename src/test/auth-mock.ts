@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import { Context } from 'hono';
 
 // Mock user for testing
@@ -10,7 +10,7 @@ export const mockUser = {
 
 // Mock authentication middleware that bypasses JWT verification
 export function createMockAuthMiddleware(user = mockUser) {
-  return jest.fn(async (c: Context, next: () => Promise<void>) => {
+  return vi.fn(async (c: Context, next: () => Promise<void>) => {
     // Set user context
     c.set('user', user);
     await next();
@@ -45,12 +45,12 @@ export function mockGenerateJWT(payload: any, secret: string, expiresIn: number 
 // Export mock functions for selective use
 export const mockAuthModule = {
   authMiddleware: createMockAuthMiddleware(),
-  verifyJWT: jest.fn().mockImplementation(mockJwtVerify),
-  generateJWT: jest.fn().mockImplementation(mockGenerateJWT),
-  generateApiKey: jest.fn().mockReturnValue('sk_' + 'A'.repeat(48)),
-  storeApiKey: jest.fn().mockResolvedValue(undefined),
-  getApiKeyData: jest.fn().mockResolvedValue(null),
-  requireAuth: jest.fn(async (c: Context, next: () => Promise<void>) => next()),
-  requireRole: jest.fn(() => jest.fn(async (c: Context, next: () => Promise<void>) => next())),
-  requirePermissions: jest.fn(() => jest.fn(async (c: Context, next: () => Promise<void>) => next())),
+  verifyJWT: vi.fn().mockImplementation(mockJwtVerify),
+  generateJWT: vi.fn().mockImplementation(mockGenerateJWT),
+  generateApiKey: vi.fn().mockReturnValue('sk_' + 'A'.repeat(48)),
+  storeApiKey: vi.fn().mockResolvedValue(undefined),
+  getApiKeyData: vi.fn().mockResolvedValue(null),
+  requireAuth: vi.fn(async (c: Context, next: () => Promise<void>) => next()),
+  requireRole: vi.fn(() => vi.fn(async (c: Context, next: () => Promise<void>) => next())),
+  requirePermissions: vi.fn(() => vi.fn(async (c: Context, next: () => Promise<void>) => next())),
 };

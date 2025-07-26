@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 
 // Mock D1 prepared statement that works with Drizzle ORM
