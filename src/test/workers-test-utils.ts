@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import { Hono } from 'hono';
 
 // Types for Cloudflare Workers environment
@@ -24,8 +24,8 @@ export class MockD1Database implements D1Database {
     this.queryLog.push(query);
     
     const mockStmt: D1PreparedStatement = {
-      bind: jest.fn().mockReturnThis(),
-      first: jest.fn(async () => {
+      bind: vi.fn().mockReturnThis(),
+      first: vi.fn(async () => {
         // Find matching response based on query patterns
         for (const [pattern, response] of this.mockResponses.entries()) {
           if (query.includes(pattern)) {
@@ -34,7 +34,7 @@ export class MockD1Database implements D1Database {
         }
         return null;
       }),
-      all: jest.fn(async () => {
+      all: vi.fn(async () => {
         // Find matching response based on query patterns
         for (const [pattern, response] of this.mockResponses.entries()) {
           if (query.includes(pattern)) {
@@ -47,11 +47,11 @@ export class MockD1Database implements D1Database {
         }
         return { results: [], success: true, meta: { duration: 1 } };
       }),
-      run: jest.fn(async () => ({
+      run: vi.fn(async () => ({
         success: true,
         meta: { changes: 1, last_row_id: 1, duration: 1 }
       })),
-      raw: jest.fn(async () => {
+      raw: vi.fn(async () => {
         for (const [pattern, response] of this.mockResponses.entries()) {
           if (query.includes(pattern)) {
             return Array.isArray(response) ? response : [response];
@@ -212,7 +212,7 @@ export async function testHonoApp<T extends TestEnv>(
 
 // Mock authentication middleware for testing
 export function mockAuthMiddleware(userId: string = 'test-user-id') {
-  return jest.fn(async (c: any, next: any) => {
+  return vi.fn(async (c: any, next: any) => {
     c.set('user', {
       id: userId,
       email: 'test@example.com',
