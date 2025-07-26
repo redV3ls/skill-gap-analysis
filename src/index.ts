@@ -8,16 +8,18 @@ import { authMiddleware } from './middleware/auth';
 import { rateLimiter } from './middleware/rateLimiter';
 import { compressionMiddleware } from './middleware/compression';
 import { performanceTrackingMiddleware } from './middleware/performanceTracking';
-import authRoutes from './routes/auth';
-import analyzeRoutes from './routes/analyze';
-import usersRoutes from './routes/users';
-import monitoringRoutes from './routes/monitoring';
-import jobsRoutes from './routes/jobs';
-import gdprRoutes from './routes/gdpr';
-import auditRoutes from './routes/audit';
-import trendsRoutes from './routes/trends';
-import { cacheMiddleware, userCacheMiddleware } from './middleware/cache';
-import { CacheNamespaces, CacheTTL } from './services/cache';
+// Temporarily commented out routes that depend on DB/Cache
+// import authRoutes from './routes/auth';
+// import analyzeRoutes from './routes/analyze';
+// import usersRoutes from './routes/users';
+// import monitoringRoutes from './routes/monitoring';
+// import jobsRoutes from './routes/jobs';
+// import gdprRoutes from './routes/gdpr';
+// import auditRoutes from './routes/audit';
+// import trendsRoutes from './routes/trends';
+// Temporarily commented out cache imports
+// import { cacheMiddleware, userCacheMiddleware } from './middleware/cache';
+// import { CacheNamespaces, CacheTTL } from './services/cache';
 import { createOpenAPIApp } from './lib/openapi';
 
 export interface Env {
@@ -75,15 +77,14 @@ app.use('*', compressionMiddleware);
 // Rate limiting middleware
 app.use('*', rateLimiter);
 
-// Authentication middleware (applied after public routes)
-// Skip auth for specific public endpoints
-app.use('/api/v1/*', async (c, next) => {
-  const publicPaths = ['/api/v1/auth/login', '/api/v1/auth/register'];
-  if (publicPaths.some(path => c.req.path.startsWith(path))) {
-    return next();
-  }
-  return authMiddleware(c, next);
-});
+// Temporarily commented out auth middleware
+// app.use('/api/v1/*', async (c, next) => {
+//   const publicPaths = ['/api/v1/auth/login', '/api/v1/auth/register'];
+//   if (publicPaths.some(path => c.req.path.startsWith(path))) {
+//     return next();
+//   }
+//   return authMiddleware(c, next);
+// });
 
 // Basic health check
 app.get('/health', (c) => {
@@ -140,94 +141,32 @@ app.get('/health/detailed', async (c) => {
   return c.json(healthStatus, statusCode);
 });
 
-// Mount auth routes
-app.route('/api/v1/auth', authRoutes);
+// Temporarily commented out routes that depend on DB/Cache
+// app.route('/api/v1/auth', authRoutes);
+// app.route('/api/v1/analyze', analyzeRoutes);
+// app.route('/api/v1/users', usersRoutes);
+// app.route('/api/v1/monitoring', monitoringRoutes);
+// app.route('/api/v1/jobs', jobsRoutes);
+// app.route('/api/v1/gdpr', gdprRoutes);
+// app.route('/api/v1/audit', auditRoutes);
+// app.route('/api/v1/trends', trendsRoutes);
 
-// Mount analyze routes
-app.route('/api/v1/analyze', analyzeRoutes);
-
-// Mount users routes
-app.route('/api/v1/users', usersRoutes);
-
-// Mount monitoring routes (admin only)
-app.route('/api/v1/monitoring', monitoringRoutes);
-
-// Mount jobs routes for async processing
-app.route('/api/v1/jobs', jobsRoutes);
-
-// Mount GDPR routes for data privacy compliance
-app.route('/api/v1/gdpr', gdprRoutes);
-
-// Mount audit routes for compliance logging
-app.route('/api/v1/audit', auditRoutes);
-
-// Mount trends routes for market analysis
-app.route('/api/v1/trends', trendsRoutes);
-
-// Mount OpenAPI documentation
-const openAPIApp = createOpenAPIApp();
-app.route('/', openAPIApp);
+// Temporarily commented out OpenAPI docs
+// const openAPIApp = createOpenAPIApp();
+// app.route('/', openAPIApp);
 
 // API root endpoint
 app.get('/api/v1', (c) => {
   return c.json({
-    message: 'Skill Gap Analysis API v1',
+    message: 'Clearsight IP API v1',
     version: '1.0.0',
+    status: 'Basic endpoints active',
     endpoints: {
       health: '/health',
-      documentation: '/api/v1/docs',
-      auth: {
-        register: 'POST /api/v1/auth/register',
-        login: 'POST /api/v1/auth/login',
-        me: 'GET /api/v1/auth/me',
-        refresh: 'POST /api/v1/auth/refresh',
-        apiKeys: 'GET /api/v1/auth/api-keys',
-        createApiKey: 'POST /api/v1/auth/api-keys',
-      },
-      analyze: {
-        gap: 'POST /api/v1/analyze/gap',
-        team: 'POST /api/v1/analyze/team',
-      },
-      users: {
-        profile: 'GET /api/v1/users/profile',
-        updateProfile: 'POST /api/v1/users/profile',
-        updateSkills: 'PUT /api/v1/users/profile/skills',
-        skillHistory: 'GET /api/v1/users/profile/skills/history',
-        removeSkill: 'DELETE /api/v1/users/profile/skills/:skillId',
-      },
-      trends: {
-        industry: 'GET /api/v1/trends/industry/{industry_id}',
-        emerging: 'GET /api/v1/trends/skills/emerging',
-        declining: 'GET /api/v1/trends/skills/declining',
-        velocity: 'GET /api/v1/trends/skills/velocity',
-        geographic: 'GET /api/v1/trends/geographic/{region}',
-        forecast: 'POST /api/v1/trends/forecast',
-      },
-      jobs: {
-        submitGapAnalysis: 'POST /api/v1/jobs/gap-analysis',
-        submitTeamAnalysis: 'POST /api/v1/jobs/team-analysis',
-        submitBulkImport: 'POST /api/v1/jobs/bulk-import',
-        getJobStatus: 'GET /api/v1/jobs/{jobId}',
-        getJobResult: 'GET /api/v1/jobs/{jobId}/result',
-        listJobs: 'GET /api/v1/jobs',
-        cancelJob: 'DELETE /api/v1/jobs/{jobId}',
-      },
-      gdpr: {
-        requestExport: 'POST /api/v1/gdpr/export',
-        getExportStatus: 'GET /api/v1/gdpr/export/{exportId}',
-        downloadExport: 'GET /api/v1/gdpr/export/{exportId}/download',
-        getExportHistory: 'GET /api/v1/gdpr/exports',
-        getDataCategories: 'GET /api/v1/gdpr/categories',
-        deleteData: 'DELETE /api/v1/gdpr/data',
-      },
-      audit: {
-        myLogs: 'GET /api/v1/audit/my-logs',
-        myStats: 'GET /api/v1/audit/my-stats',
-        adminLogs: 'GET /api/v1/audit/admin/logs',
-        adminStats: 'GET /api/v1/audit/admin/stats',
-        actions: 'GET /api/v1/audit/actions',
-      },
+      root: '/',
+      api: '/api/v1',
     },
+    note: 'Full API endpoints will be available once database is configured',
     timestamp: new Date().toISOString(),
     cloudflare: {
       colo: c.req.header('CF-RAY')?.split('-')[1] || 'unknown',
