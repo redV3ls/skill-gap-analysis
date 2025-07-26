@@ -259,7 +259,7 @@ export interface ErrorResponse {
 }
 
 export function formatErrorResponse(error: Error, request?: Request): ErrorResponse {
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = true; // Always treat as production in Cloudflare Workers
   const errorCode = ErrorFactory.getErrorCode(error);
   const statusCode = ErrorFactory.getHttpStatusCode(error);
   const context = ErrorFactory.getErrorContext(error);

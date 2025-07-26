@@ -375,8 +375,8 @@ export class ErrorSanitizer {
 
 // Create factory function to get environment-aware sanitizer
 export const createErrorSanitizer = (environment?: string): ErrorSanitizer => {
-  return new ErrorSanitizer(environment || process.env.NODE_ENV || 'production');
+  return new ErrorSanitizer(environment || 'production');
 };
 
 // Export singleton instance
-export const errorSanitizer = new ErrorSanitizer(process.env.NODE_ENV || 'production');
+export const errorSanitizer = new ErrorSanitizer('production');

@@ -72,6 +72,5 @@ class Logger {
 }
 
 // Create singleton logger instance
-export const logger = new Logger(
-  (process.env.LOG_LEVEL as LogLevel) || 'info'
-);
+// In Cloudflare Workers, we'll set the log level from environment bindings
+export const logger = new Logger('info');

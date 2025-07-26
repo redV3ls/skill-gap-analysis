@@ -5,7 +5,18 @@ compatibility_flags = ["nodejs_compat"]
 
 [env.production]
 name = "clearsight-ip"
-vars = { NODE_ENV = "production", LOG_LEVEL = "info" }
+vars = { NODE_ENV = "production", LOG_LEVEL = "info", CORS_ORIGIN = "https://clearsight-ip.com", RATE_LIMIT_WINDOW_MS = "900000", RATE_LIMIT_MAX_REQUESTS = "100" }
+
+# D1 Database binding for production
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "skill-gap-db"
+database_id = "96482268-37bf-4082-bacd-18509c947738"
+
+# KV namespace for caching in production
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "747058b5407243d9846eb3ca1d6ef563"
 
 [env.staging]
 name = "clearsight-ip-staging"
