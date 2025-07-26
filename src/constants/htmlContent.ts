@@ -226,27 +226,27 @@ export const HTML_CONTENT = `<!DOCTYPE html>
     <section class="py-16 md:py-24 hero-pattern">
         <div class="container mx-auto px-6 flex flex-col md:flex-row items-center">
             <div class="md:w-1/2 mb-12 md:mb-0">
-                <h1 class="text-4xl md:text-5xl font-bold leading-tight mb-4">
-                    Transform Career Development with <span class="gradient-text">Intelligent Skill Gap Analysis</span>
-                </h1>
-                <p class="text-xl text-gray-600 dark:text-gray-300 mb-8">
-                    Analyze skills, identify gaps, and get personalized learning recommendations powered by AI
-                </p>
-                
-                <div class="flex flex-wrap gap-4 mb-8">
-                    <div class="flex items-center">
-                        <i class="fas fa-file-alt text-accent mr-2"></i>
-                        <span class="font-medium">Processing 50K+ resumes daily</span>
+                    <h1 class="text-4xl md:text-5xl font-bold leading-tight mb-4">
+                        Build Your <span class="gradient-text">Skills Management Platform</span>
+                    </h1>
+                    <p class="text-xl text-gray-600 dark:text-gray-300 mb-8">
+                        A comprehensive RESTful API for managing user profiles, skills, and job requirements - built on Cloudflare Workers for global scale
+                    </p>
+                    
+                    <div class="flex flex-wrap gap-4 mb-8">
+                        <div class="flex items-center">
+                            <i class="fas fa-globe text-accent mr-2"></i>
+                            <span class="font-medium">Global edge deployment</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-database text-accent mr-2"></i>
+                            <span class="font-medium">D1 Database ready</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-shield-alt text-accent mr-2"></i>
+                            <span class="font-medium">JWT Authentication</span>
+                        </div>
                     </div>
-                    <div class="flex items-center">
-                        <i class="fas fa-check-circle text-accent mr-2"></i>
-                        <span class="font-medium">95% accuracy</span>
-                    </div>
-                    <div class="flex items-center">
-                        <i class="fas fa-chart-line text-accent mr-2"></i>
-                        <span class="font-medium">500+ skills tracked</span>
-                    </div>
-                </div>
                 
                 <div class="flex flex-wrap gap-4">
                     <button class="bg-primary hover:bg-blue-800 text-white font-semibold py-3 px-8 rounded-lg transition duration-300">
@@ -318,165 +318,165 @@ export const HTML_CONTENT = `<!DOCTYPE html>
     <section id="features" class="py-16 bg-light dark:bg-slate-800">
         <div class="container mx-auto px-6">
             <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold mb-4">Core Features</h2>
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Currently Available Features</h2>
                 <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                    Comprehensive skill gap analysis solutions for individuals and organizations
+                    Production-ready API endpoints for managing user profiles, skills, and job requirements
                 </p>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Feature 1 -->
+                <!-- Feature 1 - User Management -->
                 <div class="feature-card card p-6 rounded-xl transition-all duration-300">
                     <div class="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4">
-                        <i class="fas fa-user text-primary dark:text-accent text-2xl"></i>
+                        <i class="fas fa-user-cog text-primary dark:text-accent text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Individual Skill Gap Analysis</h3>
+                    <h3 class="text-xl font-bold mb-2">User Authentication & Profiles</h3>
                     <ul class="space-y-2 mb-4">
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Upload resume/CV in PDF, DOCX, or TXT format</span>
+                            <span>JWT-based user registration and login</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Compare skills against job requirements</span>
+                            <span>Complete user profile management</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Get detailed match percentage and gap severity</span>
+                            <span>Password change and security features</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Receive personalized learning recommendations</span>
+                            <span>Role-based access control</span>
                         </li>
                     </ul>
                 </div>
                 
-                <!-- Feature 2 -->
+                <!-- Feature 2 - Skills Management -->
                 <div class="feature-card card p-6 rounded-xl transition-all duration-300">
                     <div class="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4">
-                        <i class="fas fa-users text-primary dark:text-accent text-2xl"></i>
+                        <i class="fas fa-cogs text-primary dark:text-accent text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Team Skills Assessment</h3>
+                    <h3 class="text-xl font-bold mb-2">Skills & Experience Tracking</h3>
                     <ul class="space-y-2 mb-4">
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Analyze collective team capabilities</span>
+                            <span>Add, update, and remove user skills</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Identify skill redundancies and gaps</span>
+                            <span>Track skill levels (beginner to expert)</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Optimize team composition for projects</span>
+                            <span>Years of experience per skill</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Track team skill evolution over time</span>
+                            <span>Confidence scoring and certifications</span>
                         </li>
                     </ul>
                 </div>
                 
-                <!-- Feature 3 -->
+                <!-- Feature 3 - Job Management -->
                 <div class="feature-card card p-6 rounded-xl transition-all duration-300">
                     <div class="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4">
-                        <i class="fas fa-chart-line text-primary dark:text-accent text-2xl"></i>
+                        <i class="fas fa-briefcase text-primary dark:text-accent text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Industry Trend Analysis</h3>
+                    <h3 class="text-xl font-bold mb-2">Job Requirements Management</h3>
                     <ul class="space-y-2 mb-4">
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Real-time skill demand forecasting</span>
+                            <span>Create and manage job postings</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Regional skill trends and salary insights</span>
+                            <span>Define skill requirements with importance levels</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Emerging skills detection with AI</span>
+                            <span>Search and filter job opportunities</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Market predictions for 3-24 months</span>
+                            <span>Track minimum skill levels and experience</span>
                         </li>
                     </ul>
                 </div>
                 
-                <!-- Feature 4 -->
+                <!-- Feature 4 - API Infrastructure -->
                 <div class="feature-card card p-6 rounded-xl transition-all duration-300">
                     <div class="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4">
-                        <i class="fas fa-file-alt text-primary dark:text-accent text-2xl"></i>
+                        <i class="fas fa-cloud text-primary dark:text-accent text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Resume/CV Parsing</h3>
+                    <h3 class="text-xl font-bold mb-2">Enterprise-Grade Infrastructure</h3>
                     <ul class="space-y-2 mb-4">
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Extract skills with context and confidence scores</span>
+                            <span>Cloudflare Workers global deployment</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Identify experience levels (beginner to expert)</span>
+                            <span>D1 SQLite database with migrations</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Parse years of experience per skill</span>
+                            <span>KV caching for performance</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Extract education, certifications, and work history</span>
+                            <span>Built-in rate limiting and security</span>
                         </li>
                     </ul>
                 </div>
                 
-                <!-- Feature 5 -->
+                <!-- Feature 5 - Health & Monitoring -->
                 <div class="feature-card card p-6 rounded-xl transition-all duration-300">
                     <div class="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4">
-                        <i class="fas fa-brain text-primary dark:text-accent text-2xl"></i>
+                        <i class="fas fa-heartbeat text-primary dark:text-accent text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Smart Skill Matching</h3>
+                    <h3 class="text-xl font-bold mb-2">Health Monitoring & Observability</h3>
                     <ul class="space-y-2 mb-4">
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>AI-powered skill synonym recognition</span>
+                            <span>Comprehensive health check endpoints</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Context-aware skill extraction</span>
+                            <span>Database and cache connectivity monitoring</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Multi-language skill detection</span>
+                            <span>Performance tracking middleware</span>
                         </li>
                         <li class="flex items-start">
                             <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Industry-specific skill taxonomies</span>
+                            <span>Environment validation and status</span>
                         </li>
                     </ul>
                 </div>
                 
-                <!-- Feature 6 -->
-                <div class="feature-card card p-6 rounded-xl transition-all duration-300">
-                    <div class="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4">
-                        <i class="fas fa-graduation-cap text-primary dark:text-accent text-2xl"></i>
+                <!-- Feature 6 - Coming Soon -->
+                <div class="feature-card card p-6 rounded-xl transition-all duration-300 opacity-60">
+                    <div class="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
+                        <i class="fas fa-rocket text-gray-500 dark:text-gray-400 text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Learning Path Generator</h3>
+                    <h3 class="text-xl font-bold mb-2 text-gray-600 dark:text-gray-400">Coming Soon: AI Analysis</h3>
                     <ul class="space-y-2 mb-4">
                         <li class="flex items-start">
-                            <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Personalized course recommendations</span>
+                            <i class="fas fa-clock text-gray-400 mt-1 mr-2"></i>
+                            <span class="text-gray-500 dark:text-gray-400">Resume parsing and skill extraction</span>
                         </li>
                         <li class="flex items-start">
-                            <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Time-to-bridge estimates</span>
+                            <i class="fas fa-clock text-gray-400 mt-1 mr-2"></i>
+                            <span class="text-gray-500 dark:text-gray-400">Skill gap analysis algorithms</span>
                         </li>
                         <li class="flex items-start">
-                            <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Budget-conscious learning options</span>
+                            <i class="fas fa-clock text-gray-400 mt-1 mr-2"></i>
+                            <span class="text-gray-500 dark:text-gray-400">Learning path recommendations</span>
                         </li>
                         <li class="flex items-start">
-                            <i class="fas fa-check-circle text-accent mt-1 mr-2"></i>
-                            <span>Progress tracking integration</span>
+                            <i class="fas fa-clock text-gray-400 mt-1 mr-2"></i>
+                            <span class="text-gray-500 dark:text-gray-400">Industry trend analysis</span>
                         </li>
                     </ul>
                 </div>
@@ -534,47 +534,42 @@ export const HTML_CONTENT = `<!DOCTYPE html>
     <section id="api" class="py-16 bg-light dark:bg-slate-800">
         <div class="container mx-auto px-6">
             <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold mb-4">API Endpoints</h2>
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Live API Endpoints</h2>
                 <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                    Integrate skill gap analysis into your applications with our powerful REST API
+                    Currently available production endpoints for user and job management
                 </p>
             </div>
             
             <div class="max-w-4xl mx-auto">
                 <div class="code-block">
-                    <pre class="text-gray-200"><code>// Individual skill analysis
-POST /api/v1/analyze/gap
-{
-  "resume": "base64_encoded_file",
-  "job_description": "Job requirements text"
-}
+                    <pre class="text-gray-200"><code>// Authentication
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+POST /api/v1/auth/change-password
+GET  /api/v1/auth/me
 
-// Team assessment
-POST /api/v1/analyze/team
-{
-  "team_members": ["member1_id", "member2_id"]
-}
+// User Profile Management
+POST /api/v1/users/profile
+GET  /api/v1/users/{userId}/profile
+PUT  /api/v1/users/{userId}/profile
+DELETE /api/v1/users/{userId}/profile
 
-// Industry trends
-GET /api/v1/trends/industry/{industry_id}
-{
-  "region": "us-east",
-  "timeframe": "12_months"
-}
+// Skills Management
+POST /api/v1/users/{userId}/skills
+GET  /api/v1/users/{userId}/skills
+PUT  /api/v1/users/{userId}/skills/{skillId}
+DELETE /api/v1/users/{userId}/skills/{skillId}
 
-// Resume parsing
-POST /api/v1/parse/resume
-{
-  "file": "base64_encoded_resume"
-}
+// Job Management
+POST /api/v1/jobs
+GET  /api/v1/jobs/search
+GET  /api/v1/jobs/{jobId}
+PUT  /api/v1/jobs/{jobId}
+DELETE /api/v1/jobs/{jobId}
 
-// Learning paths
-GET /api/v1/skills/recommendations
-{
-  "skills": ["javascript", "react"],
-  "budget": 500,
-  "timeframe": "3_months"
-}</code></pre>
+// Health Monitoring
+GET  /health
+GET  /health/detailed</code></pre>
                 </div>
                 
                 <div class="mt-8 text-center">
@@ -1013,7 +1008,7 @@ GET /api/v1/skills/recommendations
                     <a href="#" class="hover:text-accent transition">Cookie Policy</a>
                     <a href="#" class="hover:text-accent transition">GDPR Compliance</a>
                 </div>
-                <p>&copy; 2023 Clearsight IP. All rights reserved.</p>
+                <p>&copy; 2025 Clearsight IP. All rights reserved.</p>
             </div>
         </div>
     </footer>
