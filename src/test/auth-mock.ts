@@ -42,9 +42,15 @@ export function mockGenerateJWT(payload: any, secret: string, expiresIn: number 
   return Promise.resolve(`mock-jwt-token-${payload.id}`);
 }
 
-// Mock the auth middleware module
-jest.mock('../middleware/auth', () => ({
+// Export mock functions for selective use
+export const mockAuthModule = {
   authMiddleware: createMockAuthMiddleware(),
   verifyJWT: jest.fn().mockImplementation(mockJwtVerify),
   generateJWT: jest.fn().mockImplementation(mockGenerateJWT),
-}));
+  generateApiKey: jest.fn().mockReturnValue('sk_' + 'A'.repeat(48)),
+  storeApiKey: jest.fn().mockResolvedValue(undefined),
+  getApiKeyData: jest.fn().mockResolvedValue(null),
+  requireAuth: jest.fn(async (c: Context, next: () => Promise<void>) => next()),
+  requireRole: jest.fn(() => jest.fn(async (c: Context, next: () => Promise<void>) => next())),
+  requirePermissions: jest.fn(() => jest.fn(async (c: Context, next: () => Promise<void>) => next())),
+};

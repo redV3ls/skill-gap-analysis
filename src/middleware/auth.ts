@@ -4,14 +4,19 @@ import { AppError } from './errorHandler';
 import { Env } from '../index';
 import { z } from 'zod';
 
-export interface AuthenticatedContext extends Context<{ Bindings: Env }> {
-  user?: {
-    id: string;
-    email: string;
-    role?: string;
-    apiKeyId?: string;
-  };
+export interface UserContext {
+  id: string;
+  email: string;
+  role?: string;
+  apiKeyId?: string;
 }
+
+export interface AuthenticatedContext extends Context<{ 
+  Bindings: Env;
+  Variables: {
+    user: UserContext;
+  };
+}> {}
 
 export interface ApiKeyData {
   id: string;
@@ -121,87 +126,121 @@ const verifyApiKey = async (apiKey: string, hash: string): Promise<boolean> => {
 
 // Main authentication middleware
 export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) => {
-  // Skip auth for health checks and public endpoints
-  const publicPaths = ['/health', '/api/v1/auth/login', '/api/v1/auth/register', '/'];
-  if (publicPaths.some(path => c.req.path.startsWith(path))) {
-    return next();
-  }
-
-  const apiKey = c.req.header('X-API-Key');
-  const authHeader = c.req.header('Authorization');
-
-  if (!apiKey && !authHeader) {
-    throw new AppError('API key or authorization token required', 401, 'UNAUTHORIZED');
-  }
-
-  // API key authentication
-  if (apiKey) {
-    try {
-      // Validate API key format
-      apiKeySchema.parse(apiKey);
-      
-      const apiKeyData = await getApiKeyData(c.env.CACHE, apiKey);
-      if (!apiKeyData || !apiKeyData.isActive) {
-        throw new AppError('Invalid or inactive API key', 401, 'INVALID_API_KEY');
-      }
-      
-      // Check expiration
-      if (apiKeyData.expiresAt && new Date(apiKeyData.expiresAt) < new Date()) {
-        throw new AppError('API key has expired', 401, 'EXPIRED_API_KEY');
-      }
-      
-      // Set user context from API key
-      (c as any).user = {
-        id: apiKeyData.userId,
-        email: '', // API keys don't have email context
-        role: apiKeyData.permissions.includes('admin') ? 'admin' : 'user',
-        apiKeyId: apiKeyData.id,
-      };
-      
+  try {
+    // Skip auth for health checks and public endpoints
+    const publicPaths = ['/health', '/api/v1/auth/login', '/api/v1/auth/register'];
+    const isPublicPath = publicPaths.some(path => c.req.path.startsWith(path)) || c.req.path === '/';
+    if (isPublicPath) {
       return next();
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw new AppError('Invalid API key format', 401, 'INVALID_API_KEY_FORMAT');
+    }
+
+    const apiKey = c.req.header('X-API-Key');
+    const authHeader = c.req.header('Authorization');
+
+    if (!apiKey && !authHeader) {
+      throw new AppError('API key or authorization token required', 401, 'UNAUTHORIZED');
+    }
+
+    // API key authentication
+    if (apiKey) {
+      try {
+        // Validate API key format
+        apiKeySchema.parse(apiKey);
+        
+        // Ensure KV namespace is available
+        if (!c.env?.CACHE) {
+          throw new AppError('Cache service unavailable', 500, 'SERVICE_UNAVAILABLE');
+        }
+        
+        const apiKeyData = await getApiKeyData(c.env.CACHE, apiKey);
+        if (!apiKeyData || !apiKeyData.isActive) {
+          throw new AppError('Invalid or inactive API key', 401, 'INVALID_API_KEY');
+        }
+        
+        // Check expiration
+        if (apiKeyData.expiresAt && new Date(apiKeyData.expiresAt) < new Date()) {
+          throw new AppError('API key has expired', 401, 'EXPIRED_API_KEY');
+        }
+        
+        // Set user context from API key using Hono's context methods
+        const user = {
+          id: apiKeyData.userId,
+          email: '', // API keys don't have email context
+          role: apiKeyData.permissions.includes('admin') ? 'admin' : 'user',
+          apiKeyId: apiKeyData.id,
+        };
+        c.set('user', user);
+        
+        return next();
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          throw new AppError('Invalid API key format', 401, 'INVALID_API_KEY_FORMAT');
+        }
+        if (error instanceof AppError) {
+          throw error;
+        }
+        console.error('API key authentication error:', error);
+        throw new AppError('Authentication failed', 500, 'AUTH_ERROR');
       }
+    }
+
+    // JWT token authentication
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      try {
+        // Ensure JWT secret is available
+        if (!c.env?.JWT_SECRET) {
+          throw new AppError('JWT service unavailable', 500, 'SERVICE_UNAVAILABLE');
+        }
+        
+        const payload = await verify(token, c.env.JWT_SECRET) as JWTPayload;
+        
+        // Check token expiration
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < now) {
+          throw new AppError('Token has expired', 401, 'EXPIRED_TOKEN');
+        }
+        
+        // Set user context using Hono's context methods
+        const user = {
+          id: payload.id,
+          email: payload.email,
+          role: payload.role,
+        };
+        c.set('user', user);
+        
+        return next();
+      } catch (error) {
+        if (error instanceof AppError) {
+          throw error;
+        }
+        // Handle specific JWT errors
+        if (error.message?.includes('expired')) {
+          throw new AppError('Token has expired', 401, 'EXPIRED_TOKEN');
+        }
+        if (error.message?.includes('Invalid token') || error.message?.includes('signature')) {
+          throw new AppError('Invalid or expired token', 401, 'INVALID_TOKEN');
+        }
+        throw new AppError('Invalid or expired token', 401, 'INVALID_TOKEN');
+      }
+    }
+
+    throw new AppError('Invalid authentication method', 401, 'INVALID_AUTH_METHOD');
+  } catch (error) {
+    // Ensure all errors are properly handled and don't leak as 500s
+    if (error instanceof AppError) {
       throw error;
     }
+    console.error('Authentication middleware error:', error);
+    throw new AppError('Authentication failed', 500, 'AUTH_ERROR');
   }
-
-  // JWT token authentication
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    
-    try {
-      const payload = await verify(token, c.env.JWT_SECRET) as any;
-      
-      // Check token expiration
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp < now) {
-        throw new AppError('Token has expired', 401, 'EXPIRED_TOKEN');
-      }
-      
-      (c as any).user = {
-        id: payload.id,
-        email: payload.email,
-        role: payload.role,
-      };
-      
-      return next();
-    } catch (error) {
-      console.warn('JWT validation failed:', error);
-      if (error instanceof AppError) {
-        throw error;
-      }
-      throw new AppError('Invalid or expired token', 401, 'INVALID_TOKEN');
-    }
-  }
-
-  throw new AppError('Invalid authentication method', 401, 'INVALID_AUTH_METHOD');
 };
 
 // Require authentication middleware
-export const requireAuth = async (c: AuthenticatedContext, next: Next) => {
-  if (!c.user) {
+export const requireAuth = async (c: Context<{ Bindings: Env }>, next: Next) => {
+  const user = c.get('user');
+  if (!user) {
     throw new AppError('Authentication required', 401, 'AUTHENTICATION_REQUIRED');
   }
   return next();
@@ -209,12 +248,13 @@ export const requireAuth = async (c: AuthenticatedContext, next: Next) => {
 
 // Require specific role middleware
 export const requireRole = (role: string) => {
-  return async (c: AuthenticatedContext, next: Next) => {
-    if (!c.user) {
+  return async (c: Context<{ Bindings: Env }>, next: Next) => {
+    const user = c.get('user');
+    if (!user) {
       throw new AppError('Authentication required', 401, 'AUTHENTICATION_REQUIRED');
     }
     
-    if (c.user.role !== role && c.user.role !== 'admin') {
+    if (user.role !== role && user.role !== 'admin') {
       throw new AppError('Insufficient permissions', 403, 'INSUFFICIENT_PERMISSIONS');
     }
     
@@ -224,24 +264,37 @@ export const requireRole = (role: string) => {
 
 // Require specific permissions middleware
 export const requirePermissions = (permissions: string[]) => {
-  return async (c: AuthenticatedContext, next: Next) => {
-    if (!c.user) {
+  return async (c: Context<{ Bindings: Env }>, next: Next) => {
+    const user = c.get('user');
+    if (!user) {
       throw new AppError('Authentication required', 401, 'AUTHENTICATION_REQUIRED');
     }
     
     // If using API key, check permissions
-    if (c.user.apiKeyId) {
-      const apiKeyData = await getApiKeyData(c.env.CACHE, c.req.header('X-API-Key')!);
-      if (!apiKeyData) {
-        throw new AppError('Invalid API key', 401, 'INVALID_API_KEY');
-      }
-      
-      const hasPermissions = permissions.every(perm => 
-        apiKeyData.permissions.includes(perm) || apiKeyData.permissions.includes('admin')
-      );
-      
-      if (!hasPermissions) {
-        throw new AppError('Insufficient API key permissions', 403, 'INSUFFICIENT_API_PERMISSIONS');
+    if (user.apiKeyId) {
+      try {
+        if (!c.env?.CACHE) {
+          throw new AppError('Cache service unavailable', 500, 'SERVICE_UNAVAILABLE');
+        }
+        
+        const apiKeyData = await getApiKeyData(c.env.CACHE, c.req.header('X-API-Key')!);
+        if (!apiKeyData) {
+          throw new AppError('Invalid API key', 401, 'INVALID_API_KEY');
+        }
+        
+        const hasPermissions = permissions.every(perm => 
+          apiKeyData.permissions.includes(perm) || apiKeyData.permissions.includes('admin')
+        );
+        
+        if (!hasPermissions) {
+          throw new AppError('Insufficient API key permissions', 403, 'INSUFFICIENT_API_PERMISSIONS');
+        }
+      } catch (error) {
+        if (error instanceof AppError) {
+          throw error;
+        }
+        console.error('Permission check error:', error);
+        throw new AppError('Permission check failed', 500, 'PERMISSION_ERROR');
       }
     }
     

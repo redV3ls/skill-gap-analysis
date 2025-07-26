@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
 // Import test utilities
-import './auth-mock';
+// Note: auth-mock is available for selective use but not globally applied
 
 // Mock environment variables for tests
 process.env.NODE_ENV = 'test';
