@@ -21,18 +21,18 @@ import { CacheNamespaces, CacheTTL } from './services/cache';
 import { createOpenAPIApp } from './lib/openapi';
 
 export interface Env {
-  // Cloudflare bindings
-  DB: D1Database;
-  CACHE: KVNamespace;
+  // Cloudflare bindings (optional for now)
+  DB?: D1Database;
+  CACHE?: KVNamespace;
   // RATE_LIMITER: DurableObjectNamespace; // Requires paid plan
   
   // Environment variables
-  NODE_ENV: string;
-  JWT_SECRET: string;
-  CORS_ORIGIN: string;
-  RATE_LIMIT_WINDOW_MS: string;
-  RATE_LIMIT_MAX_REQUESTS: string;
-  LOG_LEVEL: string;
+  NODE_ENV?: string;
+  JWT_SECRET?: string;
+  CORS_ORIGIN?: string;
+  RATE_LIMIT_WINDOW_MS?: string;
+  RATE_LIMIT_MAX_REQUESTS?: string;
+  LOG_LEVEL?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
