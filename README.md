@@ -1,4 +1,4 @@
-# Skill Gap Analysis API
+# Clearsight IP API
 
 A comprehensive RESTful API service built on Cloudflare Workers that analyzes skill gaps between individuals' current capabilities and job requirements, providing actionable insights and learning recommendations.
 
@@ -36,7 +36,7 @@ A comprehensive RESTful API service built on Cloudflare Workers that analyzes sk
 1. **Clone and install dependencies**
    ```bash
    git clone <your-repo-url>
-   cd skill-gap-api
+   cd clearsight-ip
    npm install
    ```
 
@@ -135,8 +135,8 @@ wrangler secret put JWT_SECRET --env staging
 ## API Documentation
 
 ### Base URLs
-- **Production**: `https://skill-gap-analysis-api.your-subdomain.workers.dev`
-- **Staging**: `https://skill-gap-analysis-api-staging.your-subdomain.workers.dev`
+- **Production**: `https://clearsight-ip-api.your-subdomain.workers.dev`
+- **Staging**: `https://clearsight-ip-api-staging.your-subdomain.workers.dev`
 
 ### Health Checks
 
@@ -232,7 +232,7 @@ MIT License - see LICENSE file for details.
 
 - 📧 Email: support@your-domain.com
 - 📖 Documentation: [API Docs](https://your-api-docs-url.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/your-username/skill-gap-api/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/your-username/clearsight-ip/issues)
 ---
 
 
@@ -240,22 +240,22 @@ MIT License - see LICENSE file for details.
 
 **✅ Successfully deployed to Cloudflare Workers!**
 
-**🌐 Live API URL:** https://skill-gap-analysis-api.vchernev93.workers.dev
+**🌐 Live API URL:** https://clearsight-ip-api.vchernev93.workers.dev
 
 ### **Test the Live API:**
 
 ```bash
 # Health check
-curl https://skill-gap-analysis-api.vchernev93.workers.dev/health
+curl https://clearsight-ip-api.vchernev93.workers.dev/health
 
 # Detailed health check (includes database and cache status)
-curl https://skill-gap-analysis-api.vchernev93.workers.dev/health/detailed
+curl https://clearsight-ip-api.vchernev93.workers.dev/health/detailed
 
 # API information and available endpoints
-curl https://skill-gap-analysis-api.vchernev93.workers.dev/api/v1
+curl https://clearsight-ip-api.vchernev93.workers.dev/api/v1
 
 # Root endpoint
-curl https://skill-gap-analysis-api.vchernev93.workers.dev/
+curl https://clearsight-ip-api.vchernev93.workers.dev/
 ```
 
 ### **Infrastructure Status:**
@@ -275,7 +275,7 @@ curl https://skill-gap-analysis-api.vchernev93.workers.dev/
    git add .
    git commit -m "Initial commit: Skill Gap Analysis API deployed to Cloudflare Workers"
    git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/skill-gap-api.git
+   git remote add origin https://github.com/YOUR_USERNAME/clearsight-ip.git
    git push -u origin main
    ```
 

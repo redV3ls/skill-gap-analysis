@@ -1,16 +1,16 @@
-name = "skill-gap-analysis-api"
+name = "clearsight-ip-api"
 main = "src/index.ts"
 compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
 [env.production]
-name = "skill-gap-analysis-api"
+name = "clearsight-ip-api"
 
 [env.staging]
-name = "skill-gap-analysis-api-staging"
+name = "clearsight-ip-api-staging"
 
 [env.development]
-name = "skill-gap-analysis-api-dev"
+name = "clearsight-ip-api-dev"
 
 # Environment variables (set these in Cloudflare dashboard or via wrangler secret) 
 [vars]
@@ -54,4 +54,4 @@ crons = ["*/5 * * * *"] # Run every 5 minutes
 # [[durable_objects.bindings]]
 # name = "QUEUE_PROCESSOR"
 # class_name = "QueueProcessor"
-# script_name = "skill-gap-analysis-api"
+# script_name = "clearsight-ip-api"

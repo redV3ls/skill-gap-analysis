@@ -1,5 +1,5 @@
 {
-  "name": "skill-gap-analysis-api",
+  "name": "clearsight-ip-api",
   "version": "1.0.0",
   "description": "Comprehensive skill gap analysis API service",
   "main": "dist/index.js",

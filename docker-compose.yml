@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: skill-gap-api
+    container_name: clearsight-ip-api
     restart: unless-stopped
     environment:
       NODE_ENV: production
