@@ -1,4 +1,4 @@
-name = "clearsight-ip"
+``name = "clearsight-ip"
 main = "src/index.ts"
 compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
@@ -7,10 +7,10 @@ compatibility_flags = ["nodejs_compat"]
 name = "clearsight-ip"
 
 [env.staging]
-name = "clearsight-ip-api-staging"
+name = "clearsight-ip-staging"
 
 [env.development]
-name = "clearsight-ip-api-dev"
+name = "clearsight-ip-dev"
 
 # Environment variables (set these in Cloudflare dashboard or via wrangler secret) 
 [vars]
@@ -54,4 +54,4 @@ crons = ["*/5 * * * *"] # Run every 5 minutes
 # [[durable_objects.bindings]]
 # name = "QUEUE_PROCESSOR"
 # class_name = "QueueProcessor"
-# script_name = "clearsight-ip-api"
+# script_name = "clearsight-ip"
