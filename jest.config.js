@@ -1,6 +1,6 @@
 module.exports = {
   preset: 'ts-jest',
-  testEnvironment: 'node',
+  testEnvironment: 'jest-environment-miniflare',
   roots: ['<rootDir>/src'],
   testMatch: [
     '**/__tests__/**/*.ts',
@@ -29,6 +29,15 @@ module.exports = {
     'html',
   ],
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
+  testEnvironmentOptions: {
+    bindings: {
+      NODE_ENV: 'test',
+      JWT_SECRET: 'test-secret-key-for-testing-only',
+    },
+    kvNamespaces: ['CACHE'],
+    d1Databases: ['DB'],
+    durableObjects: {},
+  },
   moduleNameMapping: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

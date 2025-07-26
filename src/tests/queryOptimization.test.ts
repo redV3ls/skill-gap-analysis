@@ -2,24 +2,8 @@ import { QueryOptimizationService } from '../services/queryOptimization';
 import { IntelligentCachingService } from '../services/intelligentCaching';
 import { CacheInvalidationService } from '../services/cacheInvalidation';
 import { createDatabase } from '../config/database';
-
-// Mock environment for testing
-const createTestEnv = () => ({
-  CACHE: {
-    get: jest.fn().mockResolvedValue(null),
-    put: jest.fn().mockResolvedValue(undefined),
-    delete: jest.fn().mockResolvedValue(undefined),
-    list: jest.fn().mockResolvedValue({ keys: [] }),
-  },
-  DB: {
-    prepare: jest.fn().mockReturnValue({
-      bind: jest.fn().mockReturnThis(),
-      first: jest.fn().mockResolvedValue(null),
-      all: jest.fn().mockResolvedValue({ results: [] }),
-      run: jest.fn().mockResolvedValue({ success: true }),
-    }),
-  },
-});
+import { createTestEnvironment } from '../test/workers-test-utils';
+import { createMockDrizzleDatabase, createCommonDatabaseResponses } from '../test/drizzle-d1-mock';
 
 describe('Query Optimization Service', () => {
   let queryOptimizer: QueryOptimizationService;
@@ -29,8 +13,12 @@ describe('Query Optimization Service', () => {
   let env: any;
 
   beforeEach(async () => {
-    env = createTestEnv();
-    db = createDatabase(env.DB);
+    const commonResponses = createCommonDatabaseResponses();
+    env = createTestEnvironment({
+      dbResponses: commonResponses,
+      kvData: {}
+    });
+    db = createMockDrizzleDatabase(commonResponses);
     queryOptimizer = new QueryOptimizationService(db, env);
     cacheService = new IntelligentCachingService(env);
     invalidationService = new CacheInvalidationService(env);
@@ -268,7 +256,7 @@ describe('Intelligent Caching Service', () => {
   let env: any;
 
   beforeEach(() => {
-    env = createTestEnv();
+    env = createTestEnvironment();
     cacheService = new IntelligentCachingService(env);
   });
 
@@ -423,7 +411,7 @@ describe('Cache Invalidation Service', () => {
   let env: any;
 
   beforeEach(() => {
-    env = createTestEnv();
+    env = createTestEnvironment();
     invalidationService = new CacheInvalidationService(env);
   });
 
