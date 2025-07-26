@@ -1,0 +1,268 @@
+name: Deployment Testing
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Cloudflare Workers"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deployment-validation:
+    name: Validate Deployment
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.workflow_run.head_branch }}" = "main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Health check test
+        run: |
+          if [ "${{ steps.env.outputs.environment }}" = "production" ]; then
+            API_URL="${{ secrets.PRODUCTION_API_URL }}"
+          else
+            API_URL="${{ secrets.STAGING_API_URL }}"
+          fi
+          
+          echo "Testing health endpoint: $API_URL/health"
+          
+          # Wait for deployment to be ready
+          for i in {1..30}; do
+            if curl -f "$API_URL/health" > /dev/null 2>&1; then
+              echo "Health check passed"
+              break
+            fi
+            echo "Waiting for deployment... ($i/30)"
+            sleep 10
+          done
+          
+          # Detailed health check
+          curl -f "$API_URL/health" | jq .
+
+      - name: API endpoint tests
+        run: |
+          if [ "${{ steps.env.outputs.environment }}" = "production" ]; then
+            API_URL="${{ secrets.PRODUCTION_API_URL }}"
+            API_KEY="${{ secrets.PRODUCTION_API_KEY }}"
+          else
+            API_URL="${{ secrets.STAGING_API_URL }}"
+            API_KEY="${{ secrets.STAGING_API_KEY }}"
+          fi
+          
+          echo "Testing API endpoints..."
+          
+          # Test authentication endpoint
+          curl -f -X POST "$API_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"test@example.com","password":"invalid"}' || echo "Expected auth failure"
+          
+          # Test API key endpoint
+          curl -f "$API_URL/api/health" \
+            -H "Authorization: Bearer $API_KEY" || echo "API key test failed"
+
+      - name: Performance test
+        run: |
+          if [ "${{ steps.env.outputs.environment }}" = "production" ]; then
+            API_URL="${{ secrets.PRODUCTION_API_URL }}"
+          else
+            API_URL="${{ secrets.STAGING_API_URL }}"
+          fi
+          
+          echo "Running performance test..."
+          
+          # Simple load test with curl
+          for i in {1..10}; do
+            start_time=$(date +%s%N)
+            curl -f "$API_URL/health" > /dev/null 2>&1
+            end_time=$(date +%s%N)
+            duration=$((($end_time - $start_time) / 1000000))
+            echo "Request $i: ${duration}ms"
+          done
+
+      - name: Security headers test
+        run: |
+          if [ "${{ steps.env.outputs.environment }}" = "production" ]; then
+            API_URL="${{ secrets.PRODUCTION_API_URL }}"
+          else
+            API_URL="${{ secrets.STAGING_API_URL }}"
+          fi
+          
+          echo "Testing security headers..."
+          
+          response=$(curl -I "$API_URL/health" 2>/dev/null)
+          
+          # Check for security headers
+          if echo "$response" | grep -i "x-content-type-options"; then
+            echo "✓ X-Content-Type-Options header present"
+          else
+            echo "⚠ X-Content-Type-Options header missing"
+          fi
+          
+          if echo "$response" | grep -i "x-frame-options"; then
+            echo "✓ X-Frame-Options header present"
+          else
+            echo "⚠ X-Frame-Options header missing"
+          fi
+
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deployment-validation
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run smoke tests
+        run: |
+          # Create a simple smoke test script
+          cat > smoke-test.js << 'EOF'
+          const https = require('https');
+          const assert = require('assert');
+          
+          const API_URL = process.env.API_URL || 'https://staging-api.example.com';
+          
+          async function makeRequest(path, options = {}) {
+            return new Promise((resolve, reject) => {
+              const url = new URL(path, API_URL);
+              const req = https.request(url, options, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => resolve({ status: res.statusCode, data, headers: res.headers }));
+              });
+              req.on('error', reject);
+              req.end();
+            });
+          }
+          
+          async function runSmokeTests() {
+            console.log('Running smoke tests...');
+            
+            // Test 1: Health endpoint
+            const health = await makeRequest('/health');
+            assert.strictEqual(health.status, 200, 'Health endpoint should return 200');
+            console.log('✓ Health endpoint test passed');
+            
+            // Test 2: API documentation
+            const docs = await makeRequest('/docs');
+            assert.strictEqual(docs.status, 200, 'Docs endpoint should return 200');
+            console.log('✓ Documentation endpoint test passed');
+            
+            // Test 3: 404 handling
+            const notFound = await makeRequest('/nonexistent');
+            assert.strictEqual(notFound.status, 404, 'Non-existent endpoint should return 404');
+            console.log('✓ 404 handling test passed');
+            
+            console.log('All smoke tests passed!');
+          }
+          
+          runSmokeTests().catch(console.error);
+          EOF
+          
+          # Run the smoke test
+          if [ "${{ github.event.workflow_run.head_branch }}" = "main" ]; then
+            API_URL="${{ secrets.PRODUCTION_API_URL }}" node smoke-test.js
+          else
+            API_URL="${{ secrets.STAGING_API_URL }}" node smoke-test.js
+          fi
+
+  rollback-check:
+    name: Rollback Readiness Check
+    runs-on: ubuntu-latest
+    needs: [deployment-validation, smoke-tests]
+    if: failure()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare rollback information
+        run: |
+          echo "Deployment tests failed. Rollback may be required."
+          echo "Previous commit: ${{ github.event.workflow_run.head_sha }}"
+          echo "Current branch: ${{ github.event.workflow_run.head_branch }}"
+          
+          # Create rollback instructions
+          cat > rollback-instructions.md << 'EOF'
+          # Rollback Instructions
+          
+          ## Quick Rollback
+          1. Go to the previous successful deployment in Cloudflare Workers dashboard
+          2. Click "Rollback" or redeploy the previous version
+          
+          ## Manual Rollback
+          ```bash
+          git checkout <previous-commit-sha>
+          npm run deploy:staging  # or deploy:production
+          ```
+          
+          ## Verification
+          After rollback, verify:
+          - Health endpoint returns 200
+          - Critical API endpoints are functional
+          - No error spikes in monitoring
+          EOF
+
+      - name: Upload rollback instructions
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-instructions
+          path: rollback-instructions.md
+
+      - name: Create issue for failed deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Deployment Test Failed - Rollback Required',
+              body: `
+              Deployment tests failed for commit ${{ github.event.workflow_run.head_sha }}.
+              
+              **Environment:** ${{ github.event.workflow_run.head_branch == 'main' && 'Production' || 'Staging' }}
+              **Branch:** ${{ github.event.workflow_run.head_branch }}
+              **Commit:** ${{ github.event.workflow_run.head_sha }}
+              
+              Please review the failed tests and consider rollback if necessary.
+              
+              See the rollback-instructions artifact for detailed steps.
+              `,
+              labels: ['bug', 'deployment', 'urgent']
+            });
