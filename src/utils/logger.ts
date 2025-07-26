@@ -1,60 +1,56 @@
-// Cloudflare Workers-compatible logger
-// Uses console methods which are available in Workers runtime
+/**
+ * Simple logger utility for Cloudflare Workers
+ * Provides structured logging with different levels
+ */
 
-type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-interface LoggerOptions {
-  level?: LogLevel;
-  prefix?: string;
+export interface LogEntry {
+  level: LogLevel;
+  message: string;
+  timestamp: string;
+  data?: any;
 }
 
-class WorkersLogger {
-  private level: LogLevel;
-  private prefix: string;
-  private levels: Record<LogLevel, number> = {
-    error: 0,
-    warn: 1,
-    info: 2,
-    debug: 3
-  };
+class Logger {
+  private logLevel: LogLevel;
 
-  constructor(options: LoggerOptions = {}) {
-    this.level = options.level || 'info';
-    this.prefix = options.prefix || '[API]';
+  constructor(level: LogLevel = 'info') {
+    this.logLevel = level;
   }
 
   private shouldLog(level: LogLevel): boolean {
-    return this.levels[level] <= this.levels[this.level];
+    const levels: Record<LogLevel, number> = {
+      debug: 0,
+      info: 1,
+      warn: 2,
+      error: 3
+    };
+
+    return levels[level] >= levels[this.logLevel];
   }
 
   private formatMessage(level: LogLevel, message: string, data?: any): string {
     const timestamp = new Date().toISOString();
-    let formatted = `${timestamp} ${this.prefix} [${level.toUpperCase()}]: ${message}`;
-    
-    if (data !== undefined) {
-      if (typeof data === 'object') {
-        try {
-          formatted += ` ${JSON.stringify(data)}`;
-        } catch (e) {
-          formatted += ` [Circular Reference]`;
-        }
-      } else {
-        formatted += ` ${data}`;
-      }
-    }
-    
-    return formatted;
+    const logEntry: LogEntry = {
+      level,
+      message,
+      timestamp,
+      ...(data && { data })
+    };
+
+    return JSON.stringify(logEntry);
   }
 
-  error(message: string, error?: any): void {
-    if (this.shouldLog('error')) {
-      const formatted = this.formatMessage('error', message, error);
-      console.error(formatted);
-      
-      // If error object provided, also log stack trace
-      if (error instanceof Error && error.stack) {
-        console.error(error.stack);
-      }
+  debug(message: string, data?: any): void {
+    if (this.shouldLog('debug')) {
+      console.debug(this.formatMessage('debug', message, data));
+    }
+  }
+
+  info(message: string, data?: any): void {
+    if (this.shouldLog('info')) {
+      console.info(this.formatMessage('info', message, data));
     }
   }
 
@@ -64,26 +60,18 @@ class WorkersLogger {
     }
   }
 
-  info(message: string, data?: any): void {
-    if (this.shouldLog('info')) {
-      console.log(this.formatMessage('info', message, data));
+  error(message: string, data?: any): void {
+    if (this.shouldLog('error')) {
+      console.error(this.formatMessage('error', message, data));
     }
   }
 
-  debug(message: string, data?: any): void {
-    if (this.shouldLog('debug')) {
-      console.log(this.formatMessage('debug', message, data));
-    }
-  }
-
-  // HTTP logging for request/response
-  http(message: string): void {
-    this.info(message);
+  setLevel(level: LogLevel): void {
+    this.logLevel = level;
   }
 }
 
 // Create singleton logger instance
-const logLevel = (globalThis as any).LOG_LEVEL || 'info';
-const logger = new WorkersLogger({ level: logLevel as LogLevel });
-
-export { logger };
+export const logger = new Logger(
+  (process.env.LOG_LEVEL as LogLevel) || 'info'
+);

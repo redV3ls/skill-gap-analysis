@@ -8,6 +8,7 @@ import { authMiddleware } from './middleware/auth';
 import { rateLimiter } from './middleware/rateLimiter';
 import { compressionMiddleware } from './middleware/compression';
 import { performanceTrackingMiddleware } from './middleware/performanceTracking';
+import { environmentValidationMiddleware, getEnvironmentHealthStatus } from './middleware/environmentValidation';
 // Temporarily commented out routes that depend on DB/Cache
 // import authRoutes from './routes/auth';
 // import analyzeRoutes from './routes/analyze';
@@ -23,9 +24,9 @@ import { performanceTrackingMiddleware } from './middleware/performanceTracking'
 import { createOpenAPIApp } from './lib/openapi';
 
 export interface Env {
-  // Cloudflare bindings (optional for now)
-  DB?: D1Database;
-  CACHE?: KVNamespace;
+  // Cloudflare bindings (required)
+  DB: D1Database;
+  CACHE: KVNamespace;
   // RATE_LIMITER: DurableObjectNamespace; // Requires paid plan
   
   // Environment variables
@@ -43,6 +44,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.onError(errorHandler);
 
 // Global middleware
+app.use('*', environmentValidationMiddleware);
 app.use('*', performanceTrackingMiddleware);
 app.use('*', logger());
 app.use('*', prettyJSON());
@@ -88,11 +90,14 @@ app.use('*', rateLimiter);
 
 // Basic health check
 app.get('/health', (c) => {
+  const envHealth = getEnvironmentHealthStatus();
+  
   return c.json({
-    status: 'healthy',
+    status: envHealth.status === 'valid' ? 'healthy' : 'degraded',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     environment: c.env?.NODE_ENV || 'development',
+    validation: envHealth
   });
 });
 
@@ -116,10 +121,8 @@ app.get('/health/detailed', async (c) => {
 
   // Check D1 database connection
   try {
-    if (c.env?.DB) {
-      await c.env.DB.prepare('SELECT 1').first();
-      healthStatus.dependencies.database = 'healthy';
-    }
+    await c.env.DB.prepare('SELECT 1').first();
+    healthStatus.dependencies.database = 'healthy';
   } catch (error) {
     healthStatus.dependencies.database = 'unhealthy';
     healthStatus.status = 'degraded';
@@ -127,11 +130,9 @@ app.get('/health/detailed', async (c) => {
 
   // Check KV cache
   try {
-    if (c.env?.CACHE) {
-      await c.env.CACHE.put('health_check', 'ok', { expirationTtl: 60 });
-      const result = await c.env.CACHE.get('health_check');
-      healthStatus.dependencies.cache = result === 'ok' ? 'healthy' : 'unhealthy';
-    }
+    await c.env.CACHE.put('health_check', 'ok', { expirationTtl: 60 });
+    const result = await c.env.CACHE.get('health_check');
+    healthStatus.dependencies.cache = result === 'ok' ? 'healthy' : 'unhealthy';
   } catch (error) {
     healthStatus.dependencies.cache = 'unhealthy';
     healthStatus.status = 'degraded';

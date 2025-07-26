@@ -103,6 +103,10 @@ export const createRateLimiter = (config: Partial<RateLimitConfig> = {}) => {
     const windowMs = parseInt(c.env.RATE_LIMIT_WINDOW_MS) || 900000; // 15 minutes
     const maxRequests = parseInt(c.env.RATE_LIMIT_MAX_REQUESTS) || 100;
 
+    if (!c.env.CACHE) {
+      throw new AppError('Cache service unavailable', 500, 'SERVICE_UNAVAILABLE');
+    }
+
     const rateLimiter = new KVRateLimiter(c.env.CACHE, {
       windowMs,
       maxRequests,

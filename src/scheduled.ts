@@ -97,6 +97,11 @@ async function storeScheduledRunMetrics(
   metrics: any
 ): Promise<void> {
   try {
+    if (!env.CACHE) {
+      logger.error('CACHE binding not available for storing scheduled run metrics');
+      return;
+    }
+
     const key = `scheduled_run:${new Date(metrics.timestamp).toISOString()}`;
     await env.CACHE.put(key, JSON.stringify(metrics), {
       expirationTtl: 86400 * 7, // Keep for 7 days
@@ -171,6 +176,9 @@ async function runMonitoringTasks(env: Env): Promise<void> {
     
     // Health check database
     const dbHealthy = await recoveryService.performHealthCheck('database', async () => {
+      if (!env.DB) {
+        throw new Error('DB binding not available');
+      }
       await env.DB.prepare('SELECT 1').first();
       return true;
     });

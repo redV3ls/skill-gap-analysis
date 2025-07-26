@@ -32,22 +32,6 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active);
 CREATE INDEX IF NOT EXISTS idx_api_keys_expires ON api_keys(expires_at);
 
--- Insert a default admin user for testing (password: AdminPass123!)
--- Password hash for 'AdminPass123!' using SHA-256
-INSERT OR IGNORE INTO users (
-  id, 
-  email, 
-  password_hash, 
-  name, 
-  organization, 
-  role, 
-  created_at
-) VALUES (
-  'admin-user-001',
-  'admin@skillgap.dev',
-  'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3', -- AdminPass123!
-  'System Administrator',
-  'Skill Gap Analysis',
-  'admin',
-  CURRENT_TIMESTAMP
-);
+-- NOTE: Admin users should be created through secure administrative processes
+-- No default credentials are included for security reasons
+-- Use the admin creation script provided in the scripts/ directory

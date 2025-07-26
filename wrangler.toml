@@ -5,12 +5,15 @@ compatibility_flags = ["nodejs_compat"]
 
 [env.production]
 name = "clearsight-ip"
+vars = { NODE_ENV = "production", LOG_LEVEL = "info" }
 
 [env.staging]
 name = "clearsight-ip-staging"
+vars = { NODE_ENV = "staging", LOG_LEVEL = "debug" }
 
 [env.development]
 name = "clearsight-ip-dev"
+vars = { NODE_ENV = "development", LOG_LEVEL = "debug" }
 
 # Environment variables (set these in Cloudflare dashboard or via wrangler secret) 
 [vars]
@@ -25,17 +28,17 @@ LOG_LEVEL = "info"
 # DATABASE_URL (for D1 or external database)
 # REDIS_URL (for Upstash Redis or similar)
 
-# D1 Database binding (commented out for now)
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "skill-gap-db"
-# database_id = "96482268-37bf-4082-bacd-18509c947738"
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "skill-gap-db"
+database_id = "96482268-37bf-4082-bacd-18509c947738"
 
-# KV namespace for caching (commented out for now)
-# [[kv_namespaces]]
-# binding = "CACHE"
-# id = "747058b5407243d9846eb3ca1d6ef563"
-# preview_id = "1cbf2f6e3d594ddb9214dcc7986c1141"
+# KV namespace for caching
+[[kv_namespaces]]
+binding = "CACHE"
+id = "747058b5407243d9846eb3ca1d6ef563"
+preview_id = "1cbf2f6e3d594ddb9214dcc7986c1141"
 
 # Rate limiting using Durable Objects (requires paid plan)
 # [[durable_objects.bindings]]
@@ -46,9 +49,9 @@ LOG_LEVEL = "info"
 # tag = "v1"
 # new_classes = ["RateLimiter"]
 
-# Scheduled triggers for async job processing (commented out for now)
-# [triggers]
-# crons = ["*/5 * * * *"] # Run every 5 minutes
+# Scheduled triggers for async job processing
+[triggers]
+crons = ["*/5 * * * *"] # Run every 5 minutes
 
 # For Durable Objects (requires paid plan)
 # [[durable_objects.bindings]]
