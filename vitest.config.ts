@@ -4,19 +4,9 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'miniflare',
-    environmentOptions: {
-      // Miniflare configuration for Cloudflare Workers testing
-      modules: true,
-      scriptPath: './dist/index.js',
-      bindings: {
-        // Mock environment variables for testing
-        JWT_SECRET: 'test-jwt-secret-key-for-testing-only',
-        ENVIRONMENT: 'test',
-      },
-      kvNamespaces: ['TEST_CACHE'],
-      d1Databases: ['TEST_DB'],
-    },
+    environment: 'node',
+    // Pool options for better performance
+    pool: 'forks',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
