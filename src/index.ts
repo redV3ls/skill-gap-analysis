@@ -74,8 +74,14 @@ app.use('*', cors({
   maxAge: 86400, // 24 hours
 }));
 
-// Compression middleware (before rate limiting to compress all responses)
-app.use('*', compressionMiddleware);
+// Compression middleware (exclude root path to prevent HTML corruption)
+app.use('*', async (c, next) => {
+  // Skip compression for HTML pages
+  if (c.req.path === '/') {
+    return next();
+  }
+  return compressionMiddleware(c, next);
+});
 
 // Rate limiting middleware
 app.use('*', rateLimiter);
@@ -179,17 +185,11 @@ app.get('/api/v1', (c) => {
 
 // Root endpoint - serve the HTML home page
 app.get('/', (c) => {
-  // Set proper headers for HTML content
-  c.header('Content-Type', 'text/html; charset=utf-8');
+  // Set cache header
   c.header('Cache-Control', 'public, max-age=3600');
   
-  // Return HTML content directly as Response to bypass compression
-  return new Response(HTML_CONTENT, {
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600'
-    }
-  });
+  // Return HTML content using Hono's html method (compression is bypassed above)
+  return c.html(HTML_CONTENT);
 });
 
 // 404 handler
