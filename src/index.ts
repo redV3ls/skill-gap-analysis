@@ -3,7 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { secureHeaders } from 'hono/secure-headers';
-import indexHtml from '../index.html?raw';
+import { HTML_CONTENT } from './constants/htmlContent';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
 import { rateLimiter } from './middleware/rateLimiter';
@@ -179,7 +179,7 @@ app.get('/api/v1', (c) => {
 
 // Root endpoint - serve the HTML home page
 app.get('/', (c) => {
-  return c.html(indexHtml);
+  return c.html(HTML_CONTENT);
 });
 
 // 404 handler
