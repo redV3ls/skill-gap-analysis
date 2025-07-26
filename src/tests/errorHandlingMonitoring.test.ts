@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ErrorTrackingService } from '../services/errorTracking';
 import { ErrorRecoveryService } from '../services/errorRecovery';
 import { PerformanceMetricsService } from '../services/performanceMetrics';
@@ -7,14 +7,14 @@ import { LoggingService } from '../services/logging';
 // Mock environment
 const mockEnv = {
   CACHE: {
-    get: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn(),
-    list: jest.fn(),
+    get: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    list: vi.fn(),
   },
   DB: {
-    prepare: jest.fn().mockReturnValue({
-      first: jest.fn(),
+    prepare: vi.fn().mockReturnValue({
+      first: vi.fn(),
     }),
   },
   NODE_ENV: 'test',
@@ -26,7 +26,7 @@ const mockContext = {
   req: {
     method: 'GET',
     url: 'https://api.example.com/test',
-    header: jest.fn(),
+    header: vi.fn(),
   },
   res: {
     status: 200,
@@ -36,7 +36,7 @@ const mockContext = {
 
 describe('Enhanced Error Handling and Monitoring', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('ErrorTrackingService', () => {
@@ -155,7 +155,7 @@ describe('Enhanced Error Handling and Monitoring', () => {
       mockEnv.CACHE.get.mockResolvedValue(null);
       mockEnv.CACHE.put.mockResolvedValue(undefined);
 
-      const operation = jest.fn().mockResolvedValue('success');
+      const operation = vi.fn().mockResolvedValue('success');
 
       const result = await recoveryService.executeWithCircuitBreaker(
         'test-service',
@@ -175,7 +175,7 @@ describe('Enhanced Error Handling and Monitoring', () => {
       }));
       mockEnv.CACHE.put.mockResolvedValue(undefined);
 
-      const operation = jest.fn().mockRejectedValue(new Error('Service failure'));
+      const operation = vi.fn().mockRejectedValue(new Error('Service failure'));
 
       await expect(
         recoveryService.executeWithCircuitBreaker('test-service', operation)
@@ -190,7 +190,7 @@ describe('Enhanced Error Handling and Monitoring', () => {
     });
 
     it('should execute with retry logic', async () => {
-      const operation = jest.fn()
+      const operation = vi.fn()
         .mockRejectedValueOnce(new Error('Temporary failure'))
         .mockResolvedValue('success');
 
@@ -209,7 +209,7 @@ describe('Enhanced Error Handling and Monitoring', () => {
       mockEnv.CACHE.get.mockResolvedValue(null);
       mockEnv.CACHE.put.mockResolvedValue(undefined);
 
-      const healthCheck = jest.fn().mockResolvedValue(true);
+      const healthCheck = vi.fn().mockResolvedValue(true);
 
       const isHealthy = await recoveryService.performHealthCheck(
         'test-service',
@@ -446,7 +446,7 @@ describe('Enhanced Error Handling and Monitoring', () => {
       mockEnv.CACHE.put.mockResolvedValue(undefined);
 
       // Simulate a failing operation that should trigger circuit breaker
-      const failingOperation = jest.fn().mockRejectedValue(new Error('Service down'));
+      const failingOperation = vi.fn().mockRejectedValue(new Error('Service down'));
 
       // Track the error
       const error = new Error('Service down');

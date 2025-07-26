@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from 'vitest';
 import { ErrorSanitizer } from '../errorSanitizer';
 import { Context } from 'hono';
 
@@ -11,7 +11,7 @@ describe('ErrorSanitizer', () => {
     
     mockContext = {
       req: {
-        header: jest.fn((name: string) => {
+        header: vi.fn((name: string) => {
           const headers: Record<string, string> = {
             'CF-Ray': 'test-ray-id',
             'User-Agent': 'Mozilla/5.0 (Test Browser)',

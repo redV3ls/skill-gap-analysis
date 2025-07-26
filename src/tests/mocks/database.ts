@@ -1,28 +1,28 @@
 // Mock database for testing
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 import { createMockDrizzleDatabase, createCommonDatabaseResponses } from '../drizzle-d1-mock';
 
 export const createMockDatabase = () => {
   const mockQueryBuilder = {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    innerJoin: jest.fn().mockReturnThis(),
-    returning: jest.fn().mockReturnThis(),
-    set: jest.fn().mockReturnThis(),
-    values: jest.fn().mockReturnThis(),
-    execute: jest.fn().mockResolvedValue([]),
-    then: jest.fn((callback) => callback([])),
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    execute: vi.fn().mockResolvedValue([]),
+    then: vi.fn((callback) => callback([])),
   };
 
   const mockDatabase = {
-    select: jest.fn(() => mockQueryBuilder),
-    insert: jest.fn(() => mockQueryBuilder),
-    update: jest.fn(() => mockQueryBuilder),
-    delete: jest.fn(() => mockQueryBuilder),
-    transaction: jest.fn(),
+    select: vi.fn(() => mockQueryBuilder),
+    insert: vi.fn(() => mockQueryBuilder),
+    update: vi.fn(() => mockQueryBuilder),
+    delete: vi.fn(() => mockQueryBuilder),
+    transaction: vi.fn(),
   };
 
   return { mockDatabase, mockQueryBuilder };

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from 'vitest';
 import { 
   LearningResourceIntegrationService,
   LearningResource,
@@ -10,11 +10,11 @@ import { Database } from '../config/database';
 
 // Mock the database
 const mockDb = {
-  select: jest.fn(),
-  insert: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-  transaction: jest.fn()
+  select: vi.fn(),
+  insert: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+  transaction: vi.fn()
 } as unknown as Database;
 
 describe('LearningResourceIntegrationService', () => {

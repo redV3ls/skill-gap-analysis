@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from 'vitest';
 import { GapAnalysisService } from '../services/gapAnalysis';
 import { SkillMatchingService } from '../services/skillMatching';
 
 // Mock the logger
-jest.mock('../utils/logger', () => ({
+vi.mock('../utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -18,7 +18,7 @@ describe('GapAnalysisService - Core Functionality', () => {
 
   beforeEach(() => {
     mockSkillMatchingService = {
-      matchSkills: jest.fn()
+      matchSkills: vi.fn()
     };
     gapAnalysisService = new GapAnalysisService(mockSkillMatchingService);
   });

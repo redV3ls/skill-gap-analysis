@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { Env } from '../../index';
 import analyzeRoutes from '../analyze';
@@ -7,18 +7,18 @@ import { generateJWT } from '../../middleware/auth';
 // Mock environment for testing
 const mockEnv: Env = {
   DB: {
-    prepare: jest.fn().mockReturnValue({
-      bind: jest.fn().mockReturnValue({
-        first: jest.fn(),
-        all: jest.fn(),
-        run: jest.fn()
+    prepare: vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        first: vi.fn(),
+        all: vi.fn(),
+        run: vi.fn()
       })
     })
   } as any,
   CACHE: {
-    get: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn()
+    get: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn()
   } as any,
   NODE_ENV: 'test',
   JWT_SECRET: 'test-secret-key-for-jwt-signing',
@@ -65,11 +65,11 @@ describe('Analyze Routes', () => {
     authToken = await generateJWT(testUser, mockEnv.JWT_SECRET, 3600);
     
     // Reset all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('POST /analyze/gap', () => {
@@ -103,9 +103,9 @@ describe('Analyze Routes', () => {
 
     it('should perform gap analysis successfully with valid input', async () => {
       // Mock database responses
-      const mockAnalysisInsert = jest.fn().mockResolvedValue({ success: true });
+      const mockAnalysisInsert = vi.fn().mockResolvedValue({ success: true });
       (mockEnv.DB.prepare as jest.Mock).mockReturnValue({
-        bind: jest.fn().mockReturnValue({
+        bind: vi.fn().mockReturnValue({
           run: mockAnalysisInsert
         })
       });
@@ -224,8 +224,8 @@ describe('Analyze Routes', () => {
     it('should handle database errors gracefully', async () => {
       // Mock database error
       (mockEnv.DB.prepare as jest.Mock).mockReturnValue({
-        bind: jest.fn().mockReturnValue({
-          run: jest.fn().mockRejectedValue(new Error('Database connection failed'))
+        bind: vi.fn().mockReturnValue({
+          run: vi.fn().mockRejectedValue(new Error('Database connection failed'))
         })
       });
 
@@ -257,8 +257,8 @@ describe('Analyze Routes', () => {
     it('should retrieve existing gap analysis', async () => {
       // Mock database response
       (mockEnv.DB.prepare as jest.Mock).mockReturnValue({
-        bind: jest.fn().mockReturnValue({
-          first: jest.fn().mockResolvedValue({
+        bind: vi.fn().mockReturnValue({
+          first: vi.fn().mockResolvedValue({
             id: mockAnalysisId,
             user_id: testUser.id,
             analysis_data: JSON.stringify(mockAnalysisData)
@@ -284,8 +284,8 @@ describe('Analyze Routes', () => {
     it('should return 404 for non-existent analysis', async () => {
       // Mock database returning null
       (mockEnv.DB.prepare as jest.Mock).mockReturnValue({
-        bind: jest.fn().mockReturnValue({
-          first: jest.fn().mockResolvedValue(null)
+        bind: vi.fn().mockReturnValue({
+          first: vi.fn().mockResolvedValue(null)
         })
       });
 
@@ -334,13 +334,13 @@ describe('Analyze Routes', () => {
       // Mock database responses
       (mockEnv.DB.prepare as jest.Mock)
         .mockReturnValueOnce({
-          bind: jest.fn().mockReturnValue({
-            all: jest.fn().mockResolvedValue(mockHistoryData)
+          bind: vi.fn().mockReturnValue({
+            all: vi.fn().mockResolvedValue(mockHistoryData)
           })
         })
         .mockReturnValueOnce({
-          bind: jest.fn().mockReturnValue({
-            first: jest.fn().mockResolvedValue(mockCountData)
+          bind: vi.fn().mockReturnValue({
+            first: vi.fn().mockResolvedValue(mockCountData)
           })
         });
 
@@ -367,13 +367,13 @@ describe('Analyze Routes', () => {
 
       (mockEnv.DB.prepare as jest.Mock)
         .mockReturnValueOnce({
-          bind: jest.fn().mockReturnValue({
-            all: jest.fn().mockResolvedValue(mockHistoryData)
+          bind: vi.fn().mockReturnValue({
+            all: vi.fn().mockResolvedValue(mockHistoryData)
           })
         })
         .mockReturnValueOnce({
-          bind: jest.fn().mockReturnValue({
-            first: jest.fn().mockResolvedValue(mockCountData)
+          bind: vi.fn().mockReturnValue({
+            first: vi.fn().mockResolvedValue(mockCountData)
           })
         });
 
@@ -456,9 +456,9 @@ describe('Analyze Routes', () => {
 
     it('should perform team analysis successfully with valid input', async () => {
       // Mock database responses
-      const mockAnalysisInsert = jest.fn().mockResolvedValue({ success: true });
+      const mockAnalysisInsert = vi.fn().mockResolvedValue({ success: true });
       (mockEnv.DB.prepare as jest.Mock).mockReturnValue({
-        bind: jest.fn().mockReturnValue({
+        bind: vi.fn().mockReturnValue({
           run: mockAnalysisInsert
         })
       });

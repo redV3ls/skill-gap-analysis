@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from 'vitest';
 import { Hono } from 'hono';
 import { Env } from '../../index';
 import usersRoutes from '../users';
@@ -6,44 +6,44 @@ import { generateJWT } from '../../middleware/auth';
 
 
 // Mock the database creation function
-jest.mock('../../config/database', () => ({
-  createDatabase: jest.fn()
+vi.mock('../../config/database', () => ({
+  createDatabase: vi.fn()
 }));
 
 // Create a more flexible mock query builder
 const createMockQueryBuilder = () => ({
-  from: jest.fn().mockReturnThis(),
-  select: jest.fn().mockReturnThis(),
-  where: jest.fn().mockReturnThis(),
-  limit: jest.fn().mockReturnThis(),
-  orderBy: jest.fn().mockReturnThis(),
-  innerJoin: jest.fn().mockReturnThis(),
-  returning: jest.fn().mockReturnThis(),
-  set: jest.fn().mockReturnThis(),
-  values: jest.fn().mockReturnThis(),
-  into: jest.fn().mockReturnThis(),
+  from: vi.fn().mockReturnThis(),
+  select: vi.fn().mockReturnThis(),
+  where: vi.fn().mockReturnThis(),
+  limit: vi.fn().mockReturnThis(),
+  orderBy: vi.fn().mockReturnThis(),
+  innerJoin: vi.fn().mockReturnThis(),
+  returning: vi.fn().mockReturnThis(),
+  set: vi.fn().mockReturnThis(),
+  values: vi.fn().mockReturnThis(),
+  into: vi.fn().mockReturnThis(),
 });
 
 // Mock environment for testing
 const mockEnv: Env = {
   DB: {
-    prepare: jest.fn().mockReturnValue({
-      bind: jest.fn().mockReturnValue({
-        first: jest.fn(),
-        all: jest.fn(),
-        run: jest.fn()
+    prepare: vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        first: vi.fn(),
+        all: vi.fn(),
+        run: vi.fn()
       })
     }),
-    select: jest.fn(() => createMockQueryBuilder()),
-    insert: jest.fn(() => createMockQueryBuilder()),
-    update: jest.fn(() => createMockQueryBuilder()),
-    delete: jest.fn(() => createMockQueryBuilder()),
-    transaction: jest.fn()
+    select: vi.fn(() => createMockQueryBuilder()),
+    insert: vi.fn(() => createMockQueryBuilder()),
+    update: vi.fn(() => createMockQueryBuilder()),
+    delete: vi.fn(() => createMockQueryBuilder()),
+    transaction: vi.fn()
   } as any,
   CACHE: {
-    get: jest.fn(),
-    put: jest.fn(),
-    delete: jest.fn()
+    get: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn()
   } as any,
   NODE_ENV: 'test',
   JWT_SECRET: 'test-secret-key-for-jwt-signing',
@@ -93,11 +93,11 @@ describe('Users Routes', () => {
     authToken = await generateJWT(testUser, mockEnv.JWT_SECRET, 3600);
     
     // Reset all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('GET /users/profile', () => {
@@ -133,19 +133,19 @@ describe('Users Routes', () => {
       ];
 
       // Mock database select calls
-      const mockSelect = jest.fn()
+      const mockSelect = vi.fn()
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockProfile])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockProfile])
             })
           })
         })
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            innerJoin: jest.fn().mockReturnValue({
-              where: jest.fn().mockReturnValue({
-                orderBy: jest.fn().mockResolvedValue(mockSkills)
+          from: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              where: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue(mockSkills)
               })
             })
           })
@@ -173,19 +173,19 @@ describe('Users Routes', () => {
 
     it('should return null profile if user has no profile', async () => {
       // Mock empty profile response
-      const mockSelect = jest.fn()
+      const mockSelect = vi.fn()
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([]) // No profile
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]) // No profile
             })
           })
         })
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            innerJoin: jest.fn().mockReturnValue({
-              where: jest.fn().mockReturnValue({
-                orderBy: jest.fn().mockResolvedValue([]) // No skills
+          from: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              where: vi.fn().mockReturnValue({
+                orderBy: vi.fn().mockResolvedValue([]) // No skills
               })
             })
           })
@@ -240,17 +240,17 @@ describe('Users Routes', () => {
       };
 
       // Mock database calls
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([]) // No existing profile
+      const mockSelect = vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]) // No existing profile
           })
         })
       });
 
-      const mockInsert = jest.fn().mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([mockProfile])
+      const mockInsert = vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([mockProfile])
         })
       });
 
@@ -289,18 +289,18 @@ describe('Users Routes', () => {
       };
 
       // Mock database calls
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([existingProfile])
+      const mockSelect = vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([existingProfile])
           })
         })
       });
 
-      const mockUpdate = jest.fn().mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            returning: jest.fn().mockResolvedValue([updatedProfile])
+      const mockUpdate = vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([updatedProfile])
           })
         })
       });
@@ -378,25 +378,25 @@ describe('Users Routes', () => {
       };
 
       // Mock database calls
-      const mockSelect = jest.fn()
+      const mockSelect = vi.fn()
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockProfile])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockProfile])
             })
           })
         })
         .mockReturnValue({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockSkill])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockSkill])
             })
           })
         });
 
-      const mockInsert = jest.fn().mockReturnValue({
-        values: jest.fn().mockReturnValue({
-          returning: jest.fn().mockResolvedValue([mockUserSkill])
+      const mockInsert = vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([mockUserSkill])
         })
       });
 
@@ -423,10 +423,10 @@ describe('Users Routes', () => {
 
     it('should return 404 if user profile not found', async () => {
       // Mock empty profile response
-      const mockSelect = jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([]) // No profile
+      const mockSelect = vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([]) // No profile
           })
         })
       });
@@ -487,22 +487,22 @@ describe('Users Routes', () => {
       ];
 
       // Mock database calls
-      const mockSelect = jest.fn()
+      const mockSelect = vi.fn()
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockProfile])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockProfile])
             })
           })
         });
 
       // Mock query builder chain
       const mockQuery = {
-        from: jest.fn().mockReturnThis(),
-        innerJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(mockSkillHistory)
+        from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue(mockSkillHistory)
       };
 
       mockSelect.mockReturnValueOnce(mockQuery);
@@ -527,21 +527,21 @@ describe('Users Routes', () => {
     it('should filter by skill name', async () => {
       const mockProfile = { id: 'profile-123', userId: testUser.id };
 
-      const mockSelect = jest.fn()
+      const mockSelect = vi.fn()
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockProfile])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockProfile])
             })
           })
         });
 
       const mockQuery = {
-        from: jest.fn().mockReturnThis(),
-        innerJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue([])
+        from: vi.fn().mockReturnThis(),
+        innerJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue([])
       };
 
       mockSelect.mockReturnValueOnce(mockQuery);
@@ -569,24 +569,24 @@ describe('Users Routes', () => {
       const mockUserSkill = { id: skillId, userId: 'profile-123' };
 
       // Mock database calls
-      const mockSelect = jest.fn()
+      const mockSelect = vi.fn()
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockProfile])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockProfile])
             })
           })
         })
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockUserSkill])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockUserSkill])
             })
           })
         });
 
-      const mockDelete = jest.fn().mockReturnValue({
-        where: jest.fn().mockResolvedValue(undefined)
+      const mockDelete = vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined)
       });
 
       (mockEnv.DB as any).select = mockSelect;
@@ -611,18 +611,18 @@ describe('Users Routes', () => {
       const mockProfile = { id: 'profile-123', userId: testUser.id };
 
       // Mock database calls
-      const mockSelect = jest.fn()
+      const mockSelect = vi.fn()
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockProfile])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockProfile])
             })
           })
         })
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([]) // Skill not found
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]) // Skill not found
             })
           })
         });

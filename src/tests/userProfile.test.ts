@@ -1,23 +1,23 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from 'vitest';
 import { v4 as uuidv4 } from 'uuid';
 import { UserProfileService, CreateUserProfileInput, UserSkillInput } from '../db/userProfile';
 
 // Mock database
 const mockDb: any = {
-  transaction: jest.fn(),
-  select: jest.fn(),
-  insert: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
+  transaction: vi.fn(),
+  select: vi.fn(),
+  insert: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
 };
 
 // Mock logger
-jest.mock('../utils/logger', () => ({
+vi.mock('../utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    warn: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -32,11 +32,11 @@ describe('UserProfileService', () => {
     mockUserId = uuidv4();
     mockProfileId = uuidv4();
     mockSkillId = uuidv4();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('should initialize UserProfileService', () => {
@@ -59,11 +59,11 @@ describe('UserProfileService', () => {
         updatedAt: new Date().toISOString(),
       };
 
-      const mockTransaction = jest.fn().mockImplementation(async (callback: any) => {
+      const mockTransaction = vi.fn().mockImplementation(async (callback: any) => {
         const mockTx = {
-          insert: jest.fn().mockReturnValue({
-            values: jest.fn().mockReturnValue({
-              returning: jest.fn().mockResolvedValue([mockProfile] as never),
+          insert: vi.fn().mockReturnValue({
+            values: vi.fn().mockReturnValue({
+              returning: vi.fn().mockResolvedValue([mockProfile] as never),
             }),
           }),
         };
@@ -103,9 +103,9 @@ describe('UserProfileService', () => {
   describe('getUserProfile', () => {
     it('should return null for non-existent user', async () => {
       mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          where: jest.fn().mockReturnValue({
-            limit: jest.fn().mockResolvedValue([] as never),
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([] as never),
           }),
         }),
       });

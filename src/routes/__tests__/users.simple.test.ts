@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from 'vitest';
 import { Hono } from 'hono';
 import { Env } from '../../index';
 import usersRoutes from '../users';

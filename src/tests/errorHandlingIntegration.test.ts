@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { ErrorTrackingService } from '../services/errorTracking';
 import { ErrorRecoveryService } from '../services/errorRecovery';
 import { PerformanceMetricsService } from '../services/performanceMetrics';
@@ -7,14 +7,14 @@ import { PerformanceMetricsService } from '../services/performanceMetrics';
 describe('Error Handling and Monitoring Integration', () => {
   const mockEnv = {
     CACHE: {
-      get: jest.fn().mockResolvedValue(null),
-      put: jest.fn().mockResolvedValue(undefined),
-      delete: jest.fn().mockResolvedValue(undefined),
-      list: jest.fn().mockResolvedValue({ keys: [] }),
+      get: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
+      list: vi.fn().mockResolvedValue({ keys: [] }),
     },
     DB: {
-      prepare: jest.fn().mockReturnValue({
-        first: jest.fn().mockResolvedValue({ test: 1 }),
+      prepare: vi.fn().mockReturnValue({
+        first: vi.fn().mockResolvedValue({ test: 1 }),
       }),
     },
     NODE_ENV: 'test',
@@ -25,14 +25,14 @@ describe('Error Handling and Monitoring Integration', () => {
     req: {
       method: 'GET',
       url: 'https://api.example.com/test',
-      header: jest.fn().mockReturnValue('test-value'),
+      header: vi.fn().mockReturnValue('test-value'),
     },
     res: { status: 200 },
     env: mockEnv,
   } as any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should initialize services without errors', () => {
@@ -54,7 +54,7 @@ describe('Error Handling and Monitoring Integration', () => {
 
   it('should execute operations with circuit breaker', async () => {
     const recoveryService = new ErrorRecoveryService(mockEnv);
-    const successfulOperation = jest.fn().mockResolvedValue('success');
+    const successfulOperation = vi.fn().mockResolvedValue('success');
 
     const result = await recoveryService.executeWithCircuitBreaker(
       'test-service',
@@ -67,7 +67,7 @@ describe('Error Handling and Monitoring Integration', () => {
 
   it('should retry failed operations', async () => {
     const recoveryService = new ErrorRecoveryService(mockEnv);
-    const operation = jest.fn()
+    const operation = vi.fn()
       .mockRejectedValueOnce(new Error('Temporary failure'))
       .mockResolvedValue('success');
 
@@ -130,7 +130,7 @@ describe('Error Handling and Monitoring Integration', () => {
     await errorTracking.trackError(error, mockContext);
 
     // Try to execute with circuit breaker
-    const failingOperation = jest.fn().mockRejectedValue(new Error('Service down'));
+    const failingOperation = vi.fn().mockRejectedValue(new Error('Service down'));
 
     await expect(
       recoveryService.executeWithCircuitBreaker('failing-service', failingOperation)

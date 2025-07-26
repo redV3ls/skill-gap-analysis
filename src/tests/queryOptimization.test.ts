@@ -25,7 +25,7 @@ describe('Query Optimization Service', () => {
   });
 
   afterEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('User Profile Optimization', () => {
@@ -261,7 +261,7 @@ describe('Intelligent Caching Service', () => {
   });
 
   afterEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Basic Cache Operations', () => {
@@ -342,7 +342,7 @@ describe('Intelligent Caching Service', () => {
       const expectedData = { computed: true };
       
       let fetchCalled = false;
-      const fetchFunction = jest.fn(async () => {
+      const fetchFunction = vi.fn(async () => {
         fetchCalled = true;
         return expectedData;
       });

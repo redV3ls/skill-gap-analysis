@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { EnvironmentValidator } from '../environmentValidator';
 import { Env } from '../../index';
 
@@ -12,12 +12,12 @@ describe('EnvironmentValidator', () => {
     // Create a valid mock environment
     mockEnv = {
       DB: {
-        prepare: jest.fn(() => ({ first: jest.fn() }))
+        prepare: vi.fn(() => ({ first: vi.fn() }))
       } as any,
       CACHE: {
-        get: jest.fn(),
-        put: jest.fn(),
-        delete: jest.fn()
+        get: vi.fn(),
+        put: vi.fn(),
+        delete: vi.fn()
       } as any,
       NODE_ENV: 'development',
       JWT_SECRET: 'a-very-secure-jwt-secret-that-is-long-enough-for-production-use-12345',

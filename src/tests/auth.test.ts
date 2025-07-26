@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 // Note: This is a basic test structure. 
 // For full testing, you'd need to set up a test environment with Miniflare

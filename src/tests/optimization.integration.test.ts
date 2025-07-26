@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IntelligentCachingService } from '../services/intelligentCaching';
 import { CacheInvalidationService } from '../services/cacheInvalidation';
 
 // Mock environment for testing
 const createTestEnv = () => ({
   CACHE: {
-    get: jest.fn().mockResolvedValue(null),
-    put: jest.fn().mockResolvedValue(undefined),
-    delete: jest.fn().mockResolvedValue(undefined),
-    list: jest.fn().mockResolvedValue({ keys: [] }),
+    get: vi.fn().mockResolvedValue(null),
+    put: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    list: vi.fn().mockResolvedValue({ keys: [] }),
   },
 });
 
@@ -24,7 +24,7 @@ describe('Database and Cache Optimization Integration', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Cache Operations', () => {

@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from 'vitest';
 import { GapAnalysisService, SkillGap } from '../services/gapAnalysis';
 import { SkillMatchingService, UserSkill, SkillMatch, SkillMatchingResult, TransferableSkill } from '../services/skillMatching';
 import { JobSkillRequirement } from '../services/jobAnalysis';
 
 // Mock the dependencies
-jest.mock('../utils/logger');
+vi.mock('../utils/logger');
 
 describe('GapAnalysisService', () => {
   let gapAnalysisService: GapAnalysisService;
@@ -117,7 +117,7 @@ describe('GapAnalysisService', () => {
   beforeEach(() => {
     // Create a mock skill matching service
     mockSkillMatchingService = {
-      matchSkills: jest.fn()
+      matchSkills: vi.fn()
     };
     
     // Set up default mock return value

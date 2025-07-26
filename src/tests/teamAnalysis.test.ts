@@ -5,10 +5,10 @@ import { JobAnalysisService } from '../services/jobAnalysis';
 import { createDatabase } from '../config/database';
 
 // Mock dependencies
-jest.mock('../services/gapAnalysis');
-jest.mock('../services/skillMatching');
-jest.mock('../services/jobAnalysis');
-jest.mock('../config/database');
+vi.mock('../services/gapAnalysis');
+vi.mock('../services/skillMatching');
+vi.mock('../services/jobAnalysis');
+vi.mock('../config/database');
 
 describe('TeamAnalysisService', () => {
   let teamAnalysisService: TeamAnalysisService;
@@ -97,7 +97,7 @@ describe('TeamAnalysisService', () => {
 
   beforeEach(() => {
     // Reset mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Create mock instances
     mockSkillMatchingService = new SkillMatchingService({} as any) as jest.Mocked<SkillMatchingService>;

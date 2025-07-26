@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from 'vitest';
 import { LearningPathGenerationService } from '../services/learningPathGeneration';
 import { SkillGap } from '../services/gapAnalysis';
 import { UserSkill, TransferableSkill } from '../services/skillMatching';
@@ -6,19 +6,19 @@ import { Database } from '../config/database';
 
 // Mock the database and dependencies
 const mockDb = {
-  select: jest.fn(),
-  insert: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
-  transaction: jest.fn()
+  select: vi.fn(),
+  insert: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+  transaction: vi.fn()
 } as unknown as Database;
 
 // Mock the SkillsTaxonomyService
-jest.mock('../db/skillsTaxonomy', () => ({
-  SkillsTaxonomyService: jest.fn().mockImplementation(() => ({
-    normalizeSkillNames: jest.fn(),
-    getSkill: jest.fn(),
-    searchSkills: jest.fn()
+vi.mock('../db/skillsTaxonomy', () => ({
+  SkillsTaxonomyService: vi.fn().mockImplementation(() => ({
+    normalizeSkillNames: vi.fn(),
+    getSkill: vi.fn(),
+    searchSkills: vi.fn()
   }))
 }));
 

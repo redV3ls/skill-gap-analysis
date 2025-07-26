@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from 'vitest';
 import { SkillMatchingService, UserSkill } from '../services/skillMatching';
 import { JobSkillRequirement } from '../services/jobAnalysis';
 import { Database } from '../config/database';
 
 // Mock the database and dependencies
-jest.mock('../config/database');
-jest.mock('../db/skillsTaxonomy');
-jest.mock('../utils/logger');
+vi.mock('../config/database');
+vi.mock('../db/skillsTaxonomy');
+vi.mock('../utils/logger');
 
 describe('SkillMatchingService', () => {
   let skillMatchingService: SkillMatchingService;

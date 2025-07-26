@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from 'vitest';
 import { TrendsAnalysisService } from '../services/trendsAnalysis';
 import { JobApiCollector } from '../services/jobApiCollector';
 import { TrendComputationJobs } from '../services/trendComputationJobs';
@@ -7,15 +7,15 @@ import { SampleDataPopulator } from '../services/sampleDataPopulator';
 
 // Mock database
 const mockDb = {
-  prepare: jest.fn(() => ({
-    bind: jest.fn(() => ({
-      run: jest.fn(() => Promise.resolve({ success: true, changes: 1 })),
-      all: jest.fn(() => Promise.resolve({ results: [] })),
-      first: jest.fn(() => Promise.resolve(null))
+  prepare: vi.fn(() => ({
+    bind: vi.fn(() => ({
+      run: vi.fn(() => Promise.resolve({ success: true, changes: 1 })),
+      all: vi.fn(() => Promise.resolve({ results: [] })),
+      first: vi.fn(() => Promise.resolve(null))
     })),
-    run: jest.fn(() => Promise.resolve({ success: true, changes: 1 })),
-    all: jest.fn(() => Promise.resolve({ results: [] })),
-    first: jest.fn(() => Promise.resolve(null))
+    run: vi.fn(() => Promise.resolve({ success: true, changes: 1 })),
+    all: vi.fn(() => Promise.resolve({ results: [] })),
+    first: vi.fn(() => Promise.resolve(null))
   }))
 } as any;
 
@@ -27,7 +27,7 @@ describe('Trends Analysis System', () => {
   let sampleDataPopulator: SampleDataPopulator;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     trendsService = new TrendsAnalysisService(mockDb);
     jobCollector = new JobApiCollector(mockDb);
     computationJobs = new TrendComputationJobs(mockDb);
@@ -197,8 +197,8 @@ describe('Trends Analysis System', () => {
   describe('ForecastValidationService', () => {
     it('should validate forecast accuracy', async () => {
       mockDb.prepare.mockReturnValue({
-        bind: jest.fn(() => ({
-          all: jest.fn(() => Promise.resolve({ results: [] }))
+        bind: vi.fn(() => ({
+          all: vi.fn(() => Promise.resolve({ results: [] }))
         }))
       });
 
