@@ -238,6 +238,51 @@ app.get('/api/v1', (c) => {
 
 // Root endpoint
 app.get('/', (c) => {
+  const acceptHeader = c.req.header('Accept') || '';
+  
+  // If browser request (accepts HTML), return HTML
+  if (acceptHeader.includes('text/html')) {
+    return c.html(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Clearsight IP API</title>
+          <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+            .endpoint { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+            a { color: #0066cc; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <h1>🚀 Clearsight IP API</h1>
+          <p>Welcome to the Clearsight IP Skill Gap Analysis API!</p>
+          
+          <h2>📚 Quick Links</h2>
+          <div class="endpoint">
+            <strong><a href="/api/v1/docs">📖 API Documentation</a></strong> - Interactive Swagger UI
+          </div>
+          <div class="endpoint">
+            <strong><a href="/health">💚 Health Check</a></strong> - System status
+          </div>
+          <div class="endpoint">
+            <strong><a href="/api/v1">🔗 API Endpoints</a></strong> - Available endpoints
+          </div>
+          
+          <h2>🛠️ API Information</h2>
+          <ul>
+            <li><strong>Version:</strong> 1.0.0</li>
+            <li><strong>Status:</strong> ✅ Healthy</li>
+            <li><strong>Base URL:</strong> <code>https://clearsight-ip.com/api/v1</code></li>
+          </ul>
+          
+          <p><em>This API provides comprehensive skill gap analysis and career development insights.</em></p>
+        </body>
+      </html>
+    `);
+  }
+  
+  // For API requests, return JSON
   return c.json({
     name: 'Skill Gap Analysis API',
     version: '1.0.0',
