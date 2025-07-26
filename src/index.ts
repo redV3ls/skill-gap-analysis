@@ -9,12 +9,12 @@ import { rateLimiter } from './middleware/rateLimiter';
 import { compressionMiddleware } from './middleware/compression';
 import { performanceTrackingMiddleware } from './middleware/performanceTracking';
 import { environmentValidationMiddleware, getEnvironmentHealthStatus } from './middleware/environmentValidation';
-// Temporarily commented out routes that depend on DB/Cache
-// import authRoutes from './routes/auth';
+// Import routes
+import authRoutes from './routes/auth';
+import usersRoutes from './routes/users';
+import jobsRoutes from './routes/jobs';
 // import analyzeRoutes from './routes/analyze';
-// import usersRoutes from './routes/users';
 // import monitoringRoutes from './routes/monitoring';
-// import jobsRoutes from './routes/jobs';
 // import gdprRoutes from './routes/gdpr';
 // import auditRoutes from './routes/audit';
 // import trendsRoutes from './routes/trends';
@@ -79,14 +79,14 @@ app.use('*', compressionMiddleware);
 // Rate limiting middleware
 app.use('*', rateLimiter);
 
-// Temporarily commented out auth middleware
-// app.use('/api/v1/*', async (c, next) => {
-//   const publicPaths = ['/api/v1/auth/login', '/api/v1/auth/register'];
-//   if (publicPaths.some(path => c.req.path.startsWith(path))) {
-//     return next();
-//   }
-//   return authMiddleware(c, next);
-// });
+// Authentication middleware for protected routes
+app.use('/api/v1/*', async (c, next) => {
+  const publicPaths = ['/api/v1/auth/login', '/api/v1/auth/register'];
+  if (publicPaths.some(path => c.req.path.startsWith(path))) {
+    return next();
+  }
+  return authMiddleware(c, next);
+});
 
 // Basic health check
 app.get('/health', (c) => {
@@ -142,12 +142,12 @@ app.get('/health/detailed', async (c) => {
   return c.json(healthStatus, statusCode);
 });
 
-// Temporarily commented out routes that depend on DB/Cache
-// app.route('/api/v1/auth', authRoutes);
+// API routes
+app.route('/api/v1/auth', authRoutes);
+app.route('/api/v1/users', usersRoutes);
+app.route('/api/v1/jobs', jobsRoutes);
 // app.route('/api/v1/analyze', analyzeRoutes);
-// app.route('/api/v1/users', usersRoutes);
 // app.route('/api/v1/monitoring', monitoringRoutes);
-// app.route('/api/v1/jobs', jobsRoutes);
 // app.route('/api/v1/gdpr', gdprRoutes);
 // app.route('/api/v1/audit', auditRoutes);
 // app.route('/api/v1/trends', trendsRoutes);

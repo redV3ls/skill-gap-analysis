@@ -1,108 +1,66 @@
 import { Context, Next } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { ErrorTrackingService } from '../services/errorTracking';
+import { createErrorSanitizer } from '../services/errorSanitizer';
 
 export class AppError extends Error {
   public statusCode: number;
   public code: string;
   public isOperational: boolean;
+  public details?: any;
 
-  constructor(message: string, statusCode: number = 500, code: string = 'INTERNAL_ERROR') {
+  constructor(message: string, statusCode: number = 500, code: string = 'INTERNAL_ERROR', details?: any) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
     this.isOperational = true;
+    this.details = details;
 
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
 export const errorHandler = async (err: Error, c: Context) => {
-  const timestamp = new Date().toISOString();
-  const requestId = c.req.header('CF-Ray') || 'unknown';
-  
   // Initialize error tracking if available
   let errorTracker: ErrorTrackingService | null = null;
-  let errorId: string | null = null;
+  let trackingErrorId: string | null = null;
   
   try {
     if (c.env?.CACHE) {
       errorTracker = new ErrorTrackingService(c.env as any);
-      errorId = await errorTracker.trackError(err, c);
+      trackingErrorId = await errorTracker.trackError(err, c);
     }
   } catch (trackingError) {
     // Don't let tracking errors break the error handler
     console.error('Error tracking failed:', trackingError);
   }
 
-  // Log error details
-  console.error('Error occurred:', {
-    errorId,
-    message: err.message,
-    stack: err.stack,
-    url: c.req.url,
-    method: c.req.method,
-    timestamp,
-  });
+  // Create environment-aware error sanitizer
+  const sanitizer = createErrorSanitizer(c.env?.NODE_ENV);
+  
+  // Sanitize error for client response
+  const sanitizedError = sanitizer.sanitizeError(err, c);
+  
+  // Use tracking error ID if available, otherwise use sanitized error ID
+  if (trackingErrorId) {
+    sanitizedError.id = trackingErrorId;
+  }
 
-  // Handle Hono HTTP exceptions
+  // Determine status code
+  let statusCode = 500;
+  
   if (err instanceof HTTPException) {
-    return c.json({
-      error: {
-        id: errorId,
-        code: 'HTTP_EXCEPTION',
-        message: err.message,
-        status: err.status,
-        timestamp,
-        request_id: requestId,
-      },
-    }, err.status);
+    statusCode = err.status;
+  } else if (err instanceof AppError) {
+    statusCode = err.statusCode;
+  } else if (err.name === 'ZodError') {
+    statusCode = 400;
   }
 
-  // Handle custom AppError
-  if (err instanceof AppError) {
-    const errorResponse: any = {
-      error: {
-        id: errorId,
-        code: err.code,
-        message: err.message,
-        timestamp,
-        request_id: requestId,
-      },
-    };
-
-    // Include details if they exist (for validation errors)
-    if ((err as any).details) {
-      errorResponse.details = (err as any).details;
-    }
-
-    return c.json(errorResponse, err.statusCode as any);
-  }
-
-  // Handle validation errors (Zod)
-  if (err.name === 'ZodError') {
-    return c.json({
-      error: {
-        id: errorId,
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid request data',
-        details: (err as any).errors,
-        timestamp,
-        request_id: requestId,
-      },
-    }, 400);
-  }
-
-  // Handle generic errors
+  // Return sanitized error response
   return c.json({
-    error: {
-      id: errorId,
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected error occurred',
-      timestamp,
-      request_id: requestId,
-    },
-  }, 500);
+    error: sanitizedError
+  }, statusCode);
 };
 
 export const asyncHandler = (fn: Function) => {
