@@ -50,7 +50,7 @@ app.use('*', performanceTrackingMiddleware);
 app.use('*', logger());
 app.use('*', prettyJSON());
 app.use('*', secureHeaders({
-  contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
+  contentSecurityPolicy: "default-src 'self' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;",
   crossOriginEmbedderPolicy: false, // Disable for API
 }));
 
@@ -179,7 +179,17 @@ app.get('/api/v1', (c) => {
 
 // Root endpoint - serve the HTML home page
 app.get('/', (c) => {
-  return c.html(HTML_CONTENT);
+  // Set proper headers for HTML content
+  c.header('Content-Type', 'text/html; charset=utf-8');
+  c.header('Cache-Control', 'public, max-age=3600');
+  
+  // Return HTML content directly as Response to bypass compression
+  return new Response(HTML_CONTENT, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600'
+    }
+  });
 });
 
 // 404 handler
