@@ -24,13 +24,18 @@ export const HTML_CONTENT = `<!DOCTYPE html>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             scroll-behavior: smooth;
+            color: #1f2937;
         }
         
         .dark-mode {
-            background-color: #0f172a;
-            color: #e2e8f0;
+            background-color: #0f172a !important;
+            color: #e2e8f0 !important;
+        }
+        
+        .dark-mode * {
+            color: #e2e8f0 !important;
         }
         
         .dark-mode .bg-light {
@@ -89,6 +94,14 @@ export const HTML_CONTENT = `<!DOCTYPE html>
             background: linear-gradient(90deg, #1a365d, #14b8a6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .dark-mode .gradient-text {
+            background: linear-gradient(90deg, #60a5fa, #14b8a6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         .toggle-switch {
@@ -163,6 +176,17 @@ export const HTML_CONTENT = `<!DOCTYPE html>
             0% { transform: translateY(0px); }
             50% { transform: translateY(-20px); }
             100% { transform: translateY(0px); }
+        }
+        
+        .card {
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+        }
+        
+        .bg-light {
+            background-color: #f8fafc;
         }
     </style>
 </head>
