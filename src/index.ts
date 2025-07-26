@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { secureHeaders } from 'hono/secure-headers';
+import indexHtml from '../index.html?raw';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
 import { rateLimiter } from './middleware/rateLimiter';
@@ -176,20 +177,9 @@ app.get('/api/v1', (c) => {
   });
 });
 
-// Root endpoint
+// Root endpoint - serve the HTML home page
 app.get('/', (c) => {
-  return c.json({
-    name: 'Clearsight IP API',
-    version: '1.0.0',
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    endpoints: {
-      health: '/health',
-      api: '/api/v1',
-      documentation: '/api/v1/docs',
-    },
-    message: 'Welcome to the Clearsight IP Skill Gap Analysis API! Visit /api/v1/docs for documentation.',
-  });
+  return c.html(indexHtml);
 });
 
 // 404 handler
